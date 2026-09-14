@@ -1,7 +1,7 @@
 import { KeyManager } from "@/components/dashboard/key-manager";
 
 export const metadata = {
-  title: "API Keys | AuraGate Admin",
+  title: "API Keys | LLMGate Admin",
 };
 
 export default function KeysPage() {

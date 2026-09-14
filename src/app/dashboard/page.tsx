@@ -1,7 +1,7 @@
 import { OverviewDashboard } from "@/components/dashboard/overview-dashboard";
 
 export const metadata = {
-  title: "Overview | AuraGate Admin",
+  title: "Overview | LLMGate Admin",
 };
 
 export default function DashboardPage() {

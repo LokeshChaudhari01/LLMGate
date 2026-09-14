@@ -1,6 +1,6 @@
-# AuraGate
+# LLMGate
 
-AuraGate is an intelligent, high-performance API Gateway for Large Language Models. Built with Next.js 16 (App Router), it orchestrates complex LLM requests with minimal latency while enforcing hard limits on costs.
+LLMGate is an intelligent, high-performance API Gateway for Large Language Models. Built with Next.js 16 (App Router), it orchestrates complex LLM requests with minimal latency while enforcing hard limits on costs.
 
 ## Features
 

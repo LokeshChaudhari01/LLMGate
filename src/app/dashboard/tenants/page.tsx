@@ -1,7 +1,7 @@
 import { TenantManager } from "@/components/dashboard/tenant-manager";
 
 export const metadata = {
-  title: "Tenants | AuraGate Admin",
+  title: "Tenants | LLMGate Admin",
 };
 
 export default function TenantsPage() {

@@ -38,7 +38,7 @@ export default function AdminLogin() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white">
       <div className="w-full max-w-md p-8 rounded-xl bg-zinc-900 border border-zinc-800 shadow-2xl">
         <h1 className="text-2xl font-semibold mb-6 text-center text-zinc-100">
-          AuraGate Admin
+          LLMGate Admin
         </h1>
 
         <form onSubmit={handleLogin} className="space-y-4">

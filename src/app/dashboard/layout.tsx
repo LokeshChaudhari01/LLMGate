@@ -29,7 +29,7 @@ export default function DashboardLayout({
       <div className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col fixed h-full">
         <div className="p-6 border-b border-zinc-800">
           <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            AuraGate
+            LLMGate
           </h1>
           <p className="text-xs text-zinc-500 mt-1">Admin Dashboard</p>
         </div>

@@ -1,7 +1,7 @@
 import { AnalyticsDashboard } from "@/components/dashboard/analytics-dashboard";
 
 export const metadata = {
-  title: "Routing Analytics | AuraGate Admin",
+  title: "Routing Analytics | LLMGate Admin",
 };
 
 export default function AnalyticsPage() {
