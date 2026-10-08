@@ -9,8 +9,7 @@
 //   POST https://api.groq.com/openai/v1/chat/completions
 //   Auth: Authorization: Bearer $GROQ_API_KEY
 //
-// Models (Phase 6):
-//   llama-3.3-70b-versatile → routed for coding/debugging queries
+// Routed coding model: openai/gpt-oss-120b
 // =============================================================================
 
 import type { LLMProvider, StreamRequest } from "./types";
@@ -24,6 +23,8 @@ export const groqProvider: LLMProvider = {
       messages: request.messages,
       temperature: request.temperature ?? 0.7,
       stream: true,
+      stream_options: { include_usage: true },
+      max_completion_tokens: request.maxOutputTokens,
     };
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -39,4 +40,3 @@ export const groqProvider: LLMProvider = {
     return response;
   },
 };
-

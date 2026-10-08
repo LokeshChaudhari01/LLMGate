@@ -33,6 +33,8 @@ import { sanitizeMessages } from "@/lib/proxy/pii-scrubber";
 import { selectProvider } from "@/lib/proxy/cost-router";
 import { createProxyStream } from "@/lib/proxy/stream-handler";
 import { logUsageAsync } from "@/lib/proxy/usage-logger";
+import { wakeWorker } from "@/lib/queue/wake-worker";
+import { estimateReservation, MAX_INPUT_CHARACTERS, reserveBudget } from "@/lib/proxy/budget";
 import { getProvider } from "@/lib/proxy/providers/registry";
 import {
   unauthorized,
@@ -49,7 +51,6 @@ import {
 } from "@/lib/redis/prompt-cache";
 
 import type {
-  Message,
   ProxyRequest,
   ProviderConfig,
   StreamResult,
@@ -61,12 +62,14 @@ import type {
 
 export const runtime = "nodejs"; // Required for ioredis + pg (AD-1)
 export const dynamic = "force-dynamic"; // Never cache this route
+export const maxDuration = 60;
 
 // ---------------------------------------------------------------------------
 // POST /api/v1/proxy
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const startedAt = Date.now();
   // ===== Step 0: Generate Request Correlation ID (AD-9) =====
   const requestId = crypto.randomUUID();
 
@@ -107,21 +110,25 @@ export async function POST(request: NextRequest): Promise<Response> {
   // ===== Step 5: Parse & Validate Request Body =====
   let body: ProxyRequest;
   try {
-    body = (await request.json()) as ProxyRequest;
+    const parsed: unknown = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return badRequest(requestId, "Request body must be a JSON object", rateLimitHeaders);
+    }
+    body = parsed as ProxyRequest;
   } catch {
     return badRequest(requestId, "Invalid JSON in request body", rateLimitHeaders);
   }
 
-  if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
-    return badRequest(requestId, "messages must be a non-empty array", rateLimitHeaders);
+  if (!Array.isArray(body.messages) || body.messages.length === 0 || body.messages.length > 50) {
+    return badRequest(requestId, "messages must contain 1 to 50 items", rateLimitHeaders);
   }
 
   for (let i = 0; i < body.messages.length; i++) {
     const msg = body.messages[i];
-    if (!msg.role || !msg.content || typeof msg.content !== "string") {
+    if (!msg || typeof msg !== "object" || !msg.role || typeof msg.content !== "string" || !msg.content.trim() || msg.content.length > 100_000) {
       return badRequest(
         requestId,
-        `messages[${i}] must have 'role' and 'content' string fields`,
+        `messages[${i}] must have a valid role and non-empty content under 100,000 characters`,
         rateLimitHeaders
       );
     }
@@ -133,6 +140,15 @@ export async function POST(request: NextRequest): Promise<Response> {
         rateLimitHeaders
       );
     }
+  }
+
+  const inputCharacters = body.messages.reduce((sum, message) => sum + message.content.length, 0);
+  if (inputCharacters > MAX_INPUT_CHARACTERS) {
+    return badRequest(requestId, `Total message content exceeds ${MAX_INPUT_CHARACTERS} characters`, rateLimitHeaders);
+  }
+
+  if (body.stream === false) {
+    return badRequest(requestId, "This endpoint supports streaming responses only", rateLimitHeaders);
   }
 
   if (body.temperature !== undefined) {
@@ -149,7 +165,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       return badRequest(requestId, "model must be a string", rateLimitHeaders);
     }
     // Only Gemini models are fully implemented in Phase 4
-    const validModels = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
+    const validModels = ["gemini-2.5-flash", "gemini-2.5-pro"];
     if (!validModels.includes(body.model)) {
       return badRequest(
         requestId,
@@ -158,6 +174,10 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
   }
+
+  // The free Render worker can be asleep. Start waking it while the provider
+  // request runs so queued usage can be processed after the cold start.
+  wakeWorker();
 
   // ===== Step 6: PII Scrubbing (AD-5) =====
   const { sanitizedMessages, piiDetected, piiCount } = sanitizeMessages(
@@ -172,6 +192,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   // ===== Step 7: Prompt Cache Check (AD-7) =====
   const cacheKey = generateCacheKey(
+    auth.tenantId,
     body.model ?? "auto",
     sanitizedMessages,
     body.temperature
@@ -181,7 +202,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   if (cached) {
     // Log the cache hit asynchronously
-    logUsageAsync({
+    await logUsageAsync({
       requestId,
       tenantId: auth.tenantId,
       result: {
@@ -191,7 +212,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         model: cached.model,
         routingReason: "cache_hit",
         failoverUsed: false,
-        latencyMs: 0,
+        latencyMs: Date.now() - startedAt,
         providerStatusCode: 200,
         promptTokens: cached.promptTokens,
         completionTokens: cached.completionTokens,
@@ -201,23 +222,11 @@ export async function POST(request: NextRequest): Promise<Response> {
       routingReason: "cache_hit",
     });
 
-    return Response.json(
-      {
-        choices: [
-          {
-            message: { role: "assistant", content: cached.completion },
-            finish_reason: "stop",
-          },
-        ],
-        usage: {
-          prompt_tokens: cached.promptTokens,
-          completion_tokens: cached.completionTokens,
-        },
-      },
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
+    const cachedChunk = `data: ${JSON.stringify({ choices: [{ delta: { content: cached.completion } }] })}\n\ndata: [DONE]\n\n`;
+    return new Response(cachedChunk, {
+      status: 200,
+      headers: {
+          "Content-Type": "text/event-stream",
           "X-Request-ID": requestId,
           "X-Cache": "HIT",
           "X-AuraGate-Provider": cached.provider,
@@ -226,13 +235,12 @@ export async function POST(request: NextRequest): Promise<Response> {
           "X-RateLimit-Limit": rateLimit.limit.toString(),
           "X-RateLimit-Remaining": rateLimit.remaining.toString(),
           "X-RateLimit-Reset": rateLimit.resetMs.toString(),
-        },
-      }
-    );
+      },
+    });
   }
 
   // ===== Step 8: Cost Routing (AD-4) =====
-  const routeDecision = selectProvider(sanitizedMessages, body.model);
+  const routeDecision = selectProvider(sanitizedMessages, body.model === "auto" ? undefined : body.model);
 
   // ===== Step 9: Resolve Provider from Registry (AD-3) =====
   let provider;
@@ -262,19 +270,19 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   // Build provider configs with env-based timeouts (AD-12)
   let primaryTimeoutMs = parseInt(
-    process.env.PROXY_TIMEOUT_MS || "4000",
+    process.env.PROXY_TIMEOUT_MS || "25000",
     10
   );
   if (isNaN(primaryTimeoutMs) || primaryTimeoutMs <= 0) {
-    primaryTimeoutMs = 4000;
+    primaryTimeoutMs = 25000;
   }
 
   let fallbackTimeoutMs = parseInt(
-    process.env.PROXY_FALLBACK_TIMEOUT_MS || "8000",
+    process.env.PROXY_FALLBACK_TIMEOUT_MS || "20000",
     10
   );
   if (isNaN(fallbackTimeoutMs) || fallbackTimeoutMs <= 0) {
-    fallbackTimeoutMs = 8000;
+    fallbackTimeoutMs = 20000;
   }
 
   const primaryConfig: ProviderConfig = {
@@ -287,7 +295,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Fallback: always fall back to Gemini Flash (safe, cheap, always available)
   const geminiProvider = getProvider("gemini");
   const geminiApiKey = process.env.GEMINI_API_KEY || "";
-  const fallbackModel = process.env.COST_ROUTING_CHEAP_MODEL || "gemini-2.5-flash";
+  const fallbackModel = "gemini-2.5-flash";
 
   const fallbackConfig: ProviderConfig = {
     provider: geminiProvider,
@@ -296,6 +304,19 @@ export async function POST(request: NextRequest): Promise<Response> {
     timeoutMs: fallbackTimeoutMs,
   };
 
+  // Atomically reserve a conservative upper bound before provider spend.
+  try {
+    const reserved = await reserveBudget(
+      requestId,
+      auth.tenantId,
+      estimateReservation(sanitizedMessages)
+    );
+    if (!reserved) return budgetExceeded(requestId);
+  } catch (error) {
+    console.error("Budget reservation failed:", error);
+    return providerError(requestId, "Budget service is temporarily unavailable", rateLimitHeaders);
+  }
+
   // ===== Step 10: Stream to LLM with Failover (AD-6) =====
   const stream = createProxyStream(
     requestId,
@@ -303,7 +324,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     primaryConfig,
     fallbackConfig,
     routeDecision.routingReason,
-    (result: StreamResult) => {
+    async (result: StreamResult) => {
       // ----- onComplete callback (non-blocking) -----
 
       // Cache the response with provider/model metadata (AD-7)
@@ -324,7 +345,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       }
 
       // Log usage asynchronously (AD-8)
-      logUsageAsync({
+      await logUsageAsync({
         requestId,
         tenantId: auth.tenantId,
         result,

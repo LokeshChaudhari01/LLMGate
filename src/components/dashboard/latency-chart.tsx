@@ -9,8 +9,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import type { ChartPoint } from "@/lib/dashboard/types";
 
-export function LatencyChart({ data }: { data: any[] }) {
+export function LatencyChart({ data }: { data: Pick<ChartPoint, "hour" | "avgMs">[] }) {
   if (!data || data.length === 0) {
     return <div className="h-64 flex items-center justify-center text-zinc-500">No data available</div>;
   }

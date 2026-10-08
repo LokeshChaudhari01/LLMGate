@@ -1,27 +1,35 @@
 import useSWR from "swr";
+import type {
+  AnalyticsResponse, ApiKeySummary, ChartsResponse, RequestSummary,
+  StatsResponse, TenantSummary,
+} from "@/lib/dashboard/types";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async <T,>(url: string): Promise<T> => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Could not load data (${response.status})`);
+  return response.json() as Promise<T>;
+};
 
 export function useStats() {
-  return useSWR("/api/admin/stats", fetcher, { refreshInterval: 5000 });
+  return useSWR<StatsResponse>("/api/admin/stats", fetcher, { refreshInterval: 5000 });
 }
 
 export function useCharts() {
-  return useSWR("/api/admin/charts", fetcher, { refreshInterval: 5000 });
+  return useSWR<ChartsResponse>("/api/admin/charts", fetcher, { refreshInterval: 5000 });
 }
 
 export function useRecentRequests() {
-  return useSWR("/api/admin/requests", fetcher, { refreshInterval: 5000 });
+  return useSWR<RequestSummary[]>("/api/admin/requests", fetcher, { refreshInterval: 5000 });
 }
 
 export function useAnalytics() {
-  return useSWR("/api/admin/analytics", fetcher, { refreshInterval: 10000 });
+  return useSWR<AnalyticsResponse>("/api/admin/analytics", fetcher, { refreshInterval: 10000 });
 }
 
 export function useTenants() {
-  return useSWR("/api/admin/tenants", fetcher);
+  return useSWR<TenantSummary[]>("/api/admin/tenants", fetcher);
 }
 
 export function useKeys() {
-  return useSWR("/api/admin/keys", fetcher);
+  return useSWR<ApiKeySummary[]>("/api/admin/keys", fetcher);
 }

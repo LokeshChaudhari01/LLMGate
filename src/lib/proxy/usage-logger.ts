@@ -1,34 +1,20 @@
 // =============================================================================
-// AuraGate — Non-Blocking Usage Logger
+// AuraGate — Usage Queue
 // =============================================================================
 // Purpose:
-//   Persists usage data to the usage_logs table ASYNCHRONOUSLY after stream
-//   completion. Never delays client responses (AD-8).
+//   Queues usage after a stream finishes. The route awaits enqueue before
+//   sending [DONE], keeping the accounting job alive on serverless hosts.
 //
-// Contract:
-//   1. Complete response streaming first.
-//   2. Return response to client immediately.
-//   3. Persist usage_logs asynchronously after completion.
-//   4. Logging failures NEVER affect the request lifecycle.
-//   5. Log failures internally for debugging.
-//
-// Phase 5 Upgrade:
-//   This fire-and-forget INSERT will be replaced with a BullMQ job enqueue
-//   — same non-blocking contract, but with retry guarantees and budget
-//   decrement via SELECT ... FOR UPDATE.
-//
-// Interactions:
-//   - Called by route.ts onComplete callback (step 10).
-//   - Inserts into usage_logs (Phase 2 schema).
-//   - Never imported by any other proxy module (AD-13).
+// The BullMQ worker writes usage and settles budget reservations. If enqueue
+// fails, the reservation is released and the failure is logged.
 // =============================================================================
 
-import { telemetryQueue } from "@/lib/queue/telemetry-queue";
+import { getTelemetryQueue } from "@/lib/queue/telemetry-queue";
+import { releaseReservation } from "@/lib/proxy/budget";
 import type { StreamResult, RoutingReason } from "./providers/types";
 
 /**
- * Logs usage data asynchronously. Fire-and-forget — NEVER awaited
- * in the response path.
+ * Enqueues usage before the final SSE event. The worker handles persistence.
  *
  * @param params.requestId - Correlation ID
  * @param params.tenantId - The tenant's UUID
@@ -38,7 +24,7 @@ import type { StreamResult, RoutingReason } from "./providers/types";
  * @param params.queryType - Phase 6 query classification
  * @param params.complexityScore - Phase 6 complexity score
  */
-export function logUsageAsync(params: {
+export async function logUsageAsync(params: {
   requestId: string;
   tenantId: string;
   result: StreamResult;
@@ -46,10 +32,11 @@ export function logUsageAsync(params: {
   routingReason: RoutingReason;
   queryType?: "simple" | "coding" | "complex";
   complexityScore?: number;
-}): void {
+}): Promise<void> {
   const { requestId, tenantId, result, cacheHit, routingReason, queryType, complexityScore } = params;
 
-  telemetryQueue.add("usage", {
+  try {
+    await getTelemetryQueue().add("usage", {
     requestId,
     tenantId,
     provider: result.provider,
@@ -61,14 +48,19 @@ export function logUsageAsync(params: {
     cacheHit,
     failoverUsed: result.failoverUsed,
     providerStatusCode: result.providerStatusCode,
-    status: result.isComplete ? "SUCCESS" : "FAILED",
+    status: result.isComplete ? (cacheHit ? "CACHED" : "SUCCESS") : "FAILED",
     queryType: queryType ?? null,
     complexityScore: complexityScore ?? null,
-  }).catch((error: Error) => {
-    // Log internally but NEVER throw — request is already completed
+    }, { jobId: requestId });
+  } catch (error) {
     console.error(
       `🔴 [UsageLog] Failed to enqueue job for request ${requestId.substring(0, 8)}...:`,
-      error.message
+      (error as Error).message
     );
-  });
+    if (!cacheHit) {
+      await releaseReservation(requestId).catch((releaseError: Error) => {
+        console.error(`🔴 [UsageLog] Failed to release reservation for ${requestId}:`, releaseError);
+      });
+    }
+  }
 }

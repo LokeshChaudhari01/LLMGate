@@ -71,6 +71,7 @@ const KEY_PREFIX = "auragate:cache:";
  * @returns Namespaced cache key: auragate:cache:v1:<sha256>
  */
 export function generateCacheKey(
+  tenantId: string,
   model: string,
   messages: unknown[],
   temperature: number = 1.0
@@ -79,6 +80,7 @@ export function generateCacheKey(
 
   // Canonical JSON: sorted keys ensure deterministic hashing
   const canonical = JSON.stringify({
+    tenant: tenantId,
     m: model,
     msg: messages,
     t: temperature,

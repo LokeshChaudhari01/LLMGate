@@ -91,16 +91,16 @@ async function testPromptCache(): Promise<void> {
   const messages = [{ role: "user", content: "What is the capital of France?" }];
   const temperature = 0.7;
 
-  const cacheKey = generateCacheKey(model, messages, temperature);
+  const cacheKey = generateCacheKey("test-tenant", model, messages, temperature);
   assert(cacheKey.startsWith("auragate:cache:v1:"), "Cache key has correct namespace prefix");
   assert(cacheKey.length > 30, "Cache key has reasonable length (SHA-256)");
 
   // Test: Same inputs produce same key (deterministic)
-  const cacheKey2 = generateCacheKey(model, messages, temperature);
+  const cacheKey2 = generateCacheKey("test-tenant", model, messages, temperature);
   assert(cacheKey === cacheKey2, "Same inputs produce identical cache key (deterministic)");
 
   // Test: Different inputs produce different key
-  const cacheKey3 = generateCacheKey("gemini-1.5-flash", messages, temperature);
+  const cacheKey3 = generateCacheKey("test-tenant", "gemini-1.5-flash", messages, temperature);
   assert(cacheKey !== cacheKey3, "Different model produces different cache key");
 
   // Test: Cache miss

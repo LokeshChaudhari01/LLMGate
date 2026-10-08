@@ -28,17 +28,26 @@ function getRedisConnection() {
   return {
     host: parsed.hostname,
     port: parseInt(parsed.port || "6379", 10),
-    password: parsed.password || undefined,
+    username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
+    password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+    tls: parsed.protocol === "rediss:" ? {} : undefined,
     maxRetriesPerRequest: null, // Required by BullMQ
   };
 }
 
-export const telemetryQueue = new Queue<TelemetryJobData>(TELEMETRY_QUEUE_NAME, {
-  connection: getRedisConnection(),
-  defaultJobOptions: {
-    removeOnComplete: 1000,
-    removeOnFail: 5000,
-    attempts: 3,
-    backoff: { type: "exponential", delay: 1000 },
-  },
-});
+let telemetryQueue: Queue<TelemetryJobData> | undefined;
+
+export function getTelemetryQueue(): Queue<TelemetryJobData> {
+  if (!telemetryQueue) {
+    telemetryQueue = new Queue<TelemetryJobData>(TELEMETRY_QUEUE_NAME, {
+      connection: getRedisConnection(),
+      defaultJobOptions: {
+        removeOnComplete: 1000,
+        removeOnFail: 5000,
+        attempts: 3,
+        backoff: { type: "exponential", delay: 1000 },
+      },
+    });
+  }
+  return telemetryQueue;
+}

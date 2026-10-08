@@ -50,9 +50,9 @@ import { relations } from "drizzle-orm";
 export const tenants = pgTable("tenants", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: varchar("name", { length: 255 }).notNull().unique(),
-  budgetUsd: decimal("budget_usd", { precision: 19, scale: 4 })
+  budgetUsd: decimal("budget_usd", { precision: 19, scale: 6 })
     .notNull()
-    .default("0.0000"),
+    .default("0.000000"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -139,9 +139,9 @@ export const usageLogs = pgTable(
     latencyMs: integer("latency_ms").notNull().default(0),
     promptTokens: integer("prompt_tokens").notNull().default(0),
     completionTokens: integer("completion_tokens").notNull().default(0),
-    costUsd: decimal("cost_usd", { precision: 19, scale: 4 })
+    costUsd: decimal("cost_usd", { precision: 19, scale: 6 })
       .notNull()
-      .default("0.0000"),
+      .default("0.000000"),
     cacheHit: boolean("cache_hit").notNull().default(false),
     failoverUsed: boolean("failover_used").notNull().default(false),
     providerStatusCode: integer("provider_status_code"),
@@ -177,6 +177,13 @@ export const processedJobs = pgTable("processed_jobs", {
     .notNull()
     .defaultNow(),
 });
+
+export const budgetReservations = pgTable("budget_reservations", {
+  requestId: uuid("request_id").primaryKey(),
+  tenantId: uuid("tenant_id").notNull().references(() => tenants.id),
+  amountUsd: decimal("amount_usd", { precision: 19, scale: 6 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("idx_budget_reservations_created_at").on(table.createdAt)]);
 
 // =============================================================================
 // Relations — Drizzle Relational Query API

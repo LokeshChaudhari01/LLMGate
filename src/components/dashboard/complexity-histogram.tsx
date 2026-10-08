@@ -2,7 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
-export function ComplexityHistogram({ data }: { data: any[] }) {
+export function ComplexityHistogram({ data }: { data: { bucket: string; count: number }[] }) {
   if (!data || data.length === 0) return <div className="h-64 flex items-center justify-center text-zinc-500">No data</div>;
 
   return (

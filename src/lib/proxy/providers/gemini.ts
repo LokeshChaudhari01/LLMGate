@@ -40,6 +40,7 @@ interface GeminiRequestBody {
   systemInstruction?: { parts: GeminiPart[] };
   generationConfig?: {
     temperature?: number;
+    maxOutputTokens: number;
   };
 }
 
@@ -101,9 +102,8 @@ export const geminiProvider: LLMProvider = {
       body.systemInstruction = systemInstruction;
     }
 
-    if (request.temperature !== undefined) {
-      body.generationConfig = { temperature: request.temperature };
-    }
+    body.generationConfig = { maxOutputTokens: request.maxOutputTokens };
+    if (request.temperature !== undefined) body.generationConfig.temperature = request.temperature;
 
     const endpoint = buildEndpoint(request.model, request.apiKey);
 

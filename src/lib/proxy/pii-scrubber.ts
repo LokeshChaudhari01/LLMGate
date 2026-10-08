@@ -3,8 +3,8 @@
 // =============================================================================
 // Purpose:
 //   Sanitizes user message content before external transmission to LLM
-//   providers. Detects and redacts: emails, API keys, passwords, secrets,
-//   tokens. Does NOT detect SSN or credit cards (AD-5, user directive).
+//   providers. Detects common emails, credentials, US SSNs, phone numbers,
+//   and payment-card numbers with a Luhn check.
 //
 // Interactions:
 //   - Called by route.ts as step 6 of the proxy pipeline.
@@ -17,8 +17,7 @@
 //   concurrency — zero per-request allocation overhead.
 //
 // Scope:
-//   Applied to user message content ONLY. System prompts are controlled
-//   by the gateway (not by end users) and are not scrubbed.
+//   Applied to every client-supplied message role.
 // =============================================================================
 
 import type { Message, ScrubResult } from "./providers/types";
@@ -43,6 +42,26 @@ const EMAIL_REGEX = /\b[\w.+-]+@[\w-]+\.[\w.-]+\b/gi;
  */
 const SECRET_REGEX =
   /(?:api[_-]?key|password|passwd|secret|token|auth[_-]?token|access[_-]?key|private[_-]?key)\s*[=:]\s*\S+/gi;
+const SSN_REGEX = /\b\d{3}-\d{2}-\d{4}\b/g;
+const PHONE_REGEX = /\b(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}\b/g;
+const CARD_REGEX = /\b(?:\d[ -]?){13,19}\b/g;
+
+function isValidCard(candidate: string): boolean {
+  const digits = candidate.replace(/\D/g, "");
+  if (digits.length < 13 || digits.length > 19) return false;
+  let sum = 0;
+  let double = false;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let digit = Number(digits[i]);
+    if (double) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    double = !double;
+  }
+  return sum % 10 === 0;
+}
 
 /**
  * Mapping from regex to its PII type tag for replacement strings.
@@ -51,9 +70,13 @@ const SECRET_REGEX =
 const PII_PATTERNS: ReadonlyArray<{
   regex: RegExp;
   type: string;
+  validate?: (candidate: string) => boolean;
 }> = [
   { regex: SECRET_REGEX, type: "SECRET" },
   { regex: EMAIL_REGEX, type: "EMAIL" },
+  { regex: SSN_REGEX, type: "SSN" },
+  { regex: PHONE_REGEX, type: "PHONE" },
+  { regex: CARD_REGEX, type: "CARD", validate: isValidCard },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -63,9 +86,7 @@ const PII_PATTERNS: ReadonlyArray<{
 /**
  * Sanitizes messages by detecting and redacting PII in user content.
  *
- * Only user messages are scrubbed. System and assistant messages are
- * passed through unchanged — system prompts are gateway-controlled,
- * and assistant messages are LLM-generated.
+ * All client-provided roles are scrubbed, including system and assistant.
  *
  * @param messages - The raw conversation messages from the request body
  * @returns ScrubResult with sanitized messages and PII detection metadata
@@ -74,11 +95,6 @@ export function sanitizeMessages(messages: Message[]): ScrubResult {
   let totalPiiCount = 0;
 
   const sanitizedMessages = messages.map((msg) => {
-    // Only scrub user messages
-    if (msg.role !== "user") {
-      return msg;
-    }
-
     let content = msg.content;
     let messageHits = 0;
 
@@ -86,16 +102,11 @@ export function sanitizeMessages(messages: Message[]): ScrubResult {
       // Reset lastIndex for global regex (stateful in JS)
       pattern.regex.lastIndex = 0;
 
-      const matches = content.match(pattern.regex);
-      if (matches) {
-        messageHits += matches.length;
-        // Reset again before replace (global regex is stateful)
-        pattern.regex.lastIndex = 0;
-        content = content.replace(
-          pattern.regex,
-          `[PII_REDACTED:${pattern.type}]`
-        );
-      }
+      content = content.replace(pattern.regex, (match) => {
+        if (pattern.validate && !pattern.validate(match)) return match;
+        messageHits += 1;
+        return `[PII_REDACTED:${pattern.type}]`;
+      });
     }
 
     totalPiiCount += messageHits;

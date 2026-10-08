@@ -9,8 +9,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import type { ChartPoint } from "@/lib/dashboard/types";
 
-export function RequestVolumeChart({ data }: { data: any[] }) {
+export function RequestVolumeChart({ data }: { data: Pick<ChartPoint, "hour" | "count">[] }) {
   if (!data || data.length === 0) {
     return <div className="h-64 flex items-center justify-center text-zinc-500">No data available</div>;
   }

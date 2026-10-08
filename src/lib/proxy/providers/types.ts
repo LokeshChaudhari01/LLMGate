@@ -51,6 +51,7 @@ export interface StreamRequest {
   messages: Message[];
   apiKey: string;
   temperature?: number;
+  maxOutputTokens: number;
 }
 
 /**

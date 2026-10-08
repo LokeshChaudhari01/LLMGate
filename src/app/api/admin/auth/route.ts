@@ -1,13 +1,27 @@
 import { NextResponse } from "next/server";
 import { signAdminJwt } from "@/lib/auth/jwt";
+import { checkRateLimit } from "@/lib/redis/rate-limiter";
 
 const COOKIE_NAME = "admin_session";
 const IS_PROD     = process.env.NODE_ENV === "production";
 
 export async function POST(req: Request) {
-  const { password } = await req.json();
+  const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = forwardedFor || "unknown";
+  const limit = await checkRateLimit(`admin-login:${ip}`, 5, 15 * 60_000);
+  if (!limit.allowed) {
+    return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 });
+  }
 
-  if (!password || password !== process.env.ADMIN_PASSWORD) {
+  let password: unknown;
+  try {
+    const body: unknown = await req.json();
+    password = body && typeof body === "object" && "password" in body ? body.password : undefined;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (typeof password !== "string" || !password || password !== process.env.ADMIN_PASSWORD) {
     return NextResponse.json({ error: "Invalid password" }, { status: 401 });
   }
 

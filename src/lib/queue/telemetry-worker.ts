@@ -4,6 +4,7 @@ import { pool } from "@/lib/db";
 import { calculateCost } from "./cost-calculator";
 import { invalidateKeyCache } from "@/lib/redis/key-cache";
 import { TELEMETRY_QUEUE_NAME, type TelemetryJobData } from "./telemetry-queue";
+import { processCleanupJob } from "./cleanup-job";
 
 function getRedisConnection() {
   const url = process.env.REDIS_URL;
@@ -13,7 +14,9 @@ function getRedisConnection() {
   return {
     host: parsed.hostname,
     port: parseInt(parsed.port || "6379", 10),
-    password: parsed.password || undefined,
+    username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
+    password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+    tls: parsed.protocol === "rediss:" ? {} : undefined,
     maxRetriesPerRequest: null,
   };
 }
@@ -21,6 +24,10 @@ function getRedisConnection() {
 export const telemetryWorker = new Worker<TelemetryJobData>(
   TELEMETRY_QUEUE_NAME,
   async (job: Job<TelemetryJobData>) => {
+    if (job.name === "cleanup") {
+      await processCleanupJob();
+      return;
+    }
     const data = job.data;
     
     // Cost calculation (exact tokens only)
@@ -40,14 +47,27 @@ export const telemetryWorker = new Worker<TelemetryJobData>(
           `INSERT INTO processed_jobs (request_id) VALUES ($1)`,
           [data.requestId]
         );
-      } catch (err: any) {
-        if (err.code === "23505") {
+      } catch (err: unknown) {
+        if (typeof err === "object" && err !== null && "code" in err && err.code === "23505") {
           // Unique violation: job already processed
           await client.query("ROLLBACK");
           console.log(`⏭️  [Worker] Job ${job.id} already processed (requestId: ${data.requestId}). Skipping.`);
           return;
         }
         throw err;
+      }
+
+      // A non-cached provider request must have been admitted by the budget
+      // gate. Lock its reservation so retries cannot settle it twice.
+      const reservation = data.cacheHit
+        ? null
+        : await client.query<{ amount_usd: string }>(
+            `SELECT amount_usd FROM budget_reservations
+             WHERE request_id = $1 AND tenant_id = $2 FOR UPDATE`,
+            [data.requestId, data.tenantId]
+          );
+      if (!data.cacheHit && !reservation?.rows[0]) {
+        throw new Error(`Missing budget reservation for request ${data.requestId}`);
       }
       
       // 2. Insert into usage_logs
@@ -66,17 +86,16 @@ export const telemetryWorker = new Worker<TelemetryJobData>(
         ]
       );
       
-      // 3. Decrement Budget (only if cost > 0)
-      if (parseFloat(costUsd) > 0) {
-        // Row-level lock to prevent concurrent modifications
+      // 3. Reconcile the pre-charge with actual provider usage. A failed
+      // request has zero charged cost, so its full reservation is refunded.
+      if (reservation?.rows[0]) {
         await client.query(
-          `SELECT budget_usd FROM tenants WHERE id = $1 FOR UPDATE`,
-          [data.tenantId]
+          `UPDATE tenants SET budget_usd = budget_usd + $1 - $2 WHERE id = $3`,
+          [reservation.rows[0].amount_usd, costUsd, data.tenantId]
         );
-        
         await client.query(
-          `UPDATE tenants SET budget_usd = budget_usd - $1 WHERE id = $2`,
-          [costUsd, data.tenantId]
+          `DELETE FROM budget_reservations WHERE request_id = $1`,
+          [data.requestId]
         );
       }
       

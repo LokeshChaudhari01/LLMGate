@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin-request";
 import { db } from "@/lib/db";
 import { usageLogs } from "@/lib/db/schema";
 import { sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
   try {
     const timeFilter = sql`${usageLogs.createdAt} > NOW() - INTERVAL '24 hours'`;
 
@@ -15,7 +18,7 @@ export async function GET() {
         requests: sql<number>`count(*)`.mapWith(Number),
         totalCost: sql<number>`COALESCE(sum(${usageLogs.costUsd}), 0)`.mapWith(Number),
         avgLatency: sql<number>`avg(${usageLogs.latencyMs})`.mapWith(Number),
-        successRate: sql<number>`sum(case when ${usageLogs.status} = 'SUCCESS' then 1 else 0 end)::float / count(*) * 100`.mapWith(Number),
+        successRate: sql<number>`sum(case when ${usageLogs.status} IN ('SUCCESS', 'CACHED') then 1 else 0 end)::float / count(*) * 100`.mapWith(Number),
       })
       .from(usageLogs)
       .where(timeFilter)
@@ -27,7 +30,7 @@ export async function GET() {
         requests: sql<number>`count(*)`.mapWith(Number),
         totalCost: sql<number>`COALESCE(sum(${usageLogs.costUsd}), 0)`.mapWith(Number),
         avgLatency: sql<number>`avg(${usageLogs.latencyMs})`.mapWith(Number),
-        successRate: sql<number>`sum(case when ${usageLogs.status} = 'SUCCESS' then 1 else 0 end)::float / count(*) * 100`.mapWith(Number),
+        successRate: sql<number>`sum(case when ${usageLogs.status} IN ('SUCCESS', 'CACHED') then 1 else 0 end)::float / count(*) * 100`.mapWith(Number),
       })
       .from(usageLogs)
       .where(timeFilter)
@@ -38,7 +41,7 @@ export async function GET() {
         queryType: sql<string>`COALESCE(${usageLogs.queryType}, 'unknown')`,
         requests: sql<number>`count(*)`.mapWith(Number),
         totalCost: sql<number>`COALESCE(sum(${usageLogs.costUsd}), 0)`.mapWith(Number),
-        successRate: sql<number>`sum(case when ${usageLogs.status} = 'SUCCESS' then 1 else 0 end)::float / count(*) * 100`.mapWith(Number),
+        successRate: sql<number>`sum(case when ${usageLogs.status} IN ('SUCCESS', 'CACHED') then 1 else 0 end)::float / count(*) * 100`.mapWith(Number),
       })
       .from(usageLogs)
       .where(timeFilter)

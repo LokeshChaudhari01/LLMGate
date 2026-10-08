@@ -8,7 +8,7 @@ import { ComplexityHistogram } from "./complexity-histogram";
 import { RoutingReasonChart } from "./routing-reason-chart";
 
 export function AnalyticsDashboard() {
-  const { data, isLoading } = useAnalytics();
+  const { data, error, isLoading } = useAnalytics();
 
   if (isLoading) {
     return (
@@ -22,6 +22,7 @@ export function AnalyticsDashboard() {
 
   return (
     <div className="space-y-6">
+      {error && <p role="alert" className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">Analytics could not load. Check the database and refresh.</p>}
       {/* Row 1: Provider Distribution */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ProviderDonut data={data?.byProvider || []} dataKey="requests" />
@@ -39,7 +40,7 @@ export function AnalyticsDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <QueryTypeChart data={data?.byQueryType || []} dataKey="requests" />
         <QueryTypeChart data={data?.byQueryType || []} dataKey="totalCost" />
-        <ModelBarChart data={data?.byQueryType || []} dataKey="successRate" fill="#f59e0b" />
+        <ModelBarChart data={data?.byQueryType || []} dataKey="successRate" categoryKey="queryType" fill="#f59e0b" />
       </div>
 
       {/* Row 4: Routing Intelligence */}

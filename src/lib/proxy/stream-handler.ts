@@ -27,6 +27,7 @@ import type {
   StreamResult,
   RoutingReason,
 } from "./providers/types";
+import { MAX_OUTPUT_TOKENS } from "./budget";
 
 // ---------------------------------------------------------------------------
 // SSE Parsing Helpers
@@ -41,7 +42,10 @@ import type {
 function extractGeminiText(dataLine: string): string | null {
   try {
     const json = JSON.parse(dataLine);
-    return json?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+    const parts = json?.candidates?.[0]?.content?.parts;
+    if (!Array.isArray(parts)) return null;
+    const text = parts.map((part: { text?: unknown }) => part.text).filter((value: unknown): value is string => typeof value === "string").join("");
+    return text || null;
   } catch {
     return null;
   }
@@ -83,7 +87,7 @@ function extractGeminiTokens(dataLine: string): {
     if (meta) {
       return {
         promptTokens: meta.promptTokenCount ?? 0,
-        completionTokens: meta.candidatesTokenCount ?? 0,
+        completionTokens: (meta.candidatesTokenCount ?? 0) + (meta.thoughtsTokenCount ?? 0),
       };
     }
     return null;
@@ -135,6 +139,7 @@ interface StreamAttemptResult {
   statusCode: number;
   response?: Response;
   error?: string;
+  cleanup?: () => void;
 }
 
 /**
@@ -157,13 +162,13 @@ async function attemptStream(
         messages,
         apiKey: config.apiKey,
         temperature,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
       },
       controller.signal
     );
 
-    clearTimeout(timeoutId);
-
     if (!response.ok) {
+      clearTimeout(timeoutId);
       return {
         success: false,
         statusCode: response.status,
@@ -171,7 +176,12 @@ async function attemptStream(
       };
     }
 
-    return { success: true, statusCode: response.status, response };
+    return {
+      success: true,
+      statusCode: response.status,
+      response,
+      cleanup: () => clearTimeout(timeoutId),
+    };
   } catch (error) {
     clearTimeout(timeoutId);
     const message =
@@ -214,7 +224,7 @@ export function createProxyStream(
   primaryConfig: ProviderConfig,
   fallbackConfig: ProviderConfig,
   routingReason: RoutingReason,
-  onComplete: (result: StreamResult) => void,
+  onComplete: (result: StreamResult) => Promise<void>,
   temperature?: number
 ): ReadableStream<Uint8Array> {
   const startTime = Date.now();
@@ -255,7 +265,7 @@ export function createProxyStream(
           controller.enqueue(encoder.encode(errorEvent));
           controller.close();
 
-          onComplete({
+          await onComplete({
             requestId,
             completion: "",
             provider: primaryConfig.provider.name,
@@ -285,6 +295,7 @@ export function createProxyStream(
       const reader = response.body?.getReader();
 
       if (!reader) {
+        attempt.cleanup?.();
         const errorEvent =
           `event: error\ndata: ${JSON.stringify({
             message: "Provider returned empty response body",
@@ -294,7 +305,7 @@ export function createProxyStream(
         controller.enqueue(encoder.encode(errorEvent));
         controller.close();
         
-        onComplete({
+        await onComplete({
           requestId,
           completion: "",
           provider: usedProvider,
@@ -355,13 +366,20 @@ export function createProxyStream(
             }
           }
         }
+        attempt.cleanup?.();
 
-        // Send [DONE] signal
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        controller.close();
+        // Some providers omit usage in streaming mode. Estimate only when no
+        // metadata arrived, so the budget ledger never records a free call.
+        if (promptTokens === 0) {
+          promptTokens = Math.max(1, Math.ceil(messages.reduce((n, m) => n + m.content.length, 0) / 4));
+        }
+        if (completionTokens === 0 && completionText) {
+          completionTokens = Math.max(1, Math.ceil(completionText.length / 4));
+        }
 
-        // Fire completion callback (non-blocking)
-        onComplete({
+        // Queue usage before ending the response so the serverless runtime
+        // cannot discard the job when the connection closes.
+        await onComplete({
           requestId,
           completion: completionText,
           provider: usedProvider,
@@ -374,7 +392,10 @@ export function createProxyStream(
           completionTokens,
           isComplete: true,
         });
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
       } catch (error) {
+        attempt.cleanup?.();
         // Mid-stream error: cancel reader, emit SSE error event, close cleanly (AD-6)
         reader?.cancel().catch(() => {});
         
@@ -397,7 +418,7 @@ export function createProxyStream(
           // Controller may already be closed
         }
 
-        onComplete({
+        await onComplete({
           requestId,
           completion: completionText,
           provider: usedProvider,

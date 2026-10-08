@@ -1,0 +1,31 @@
+services:
+  - type: keyvalue
+    name: auragate-redis
+    region: singapore
+    plan: free
+    maxmemoryPolicy: noeviction
+    persistenceMode: "off"
+    ipAllowList:
+      # Vercel Hobby uses changing outbound IPs. External Redis always uses TLS and auth.
+      - source: 0.0.0.0/0
+        description: Vercel dynamic egress
+
+  - type: web
+    name: auragate-worker
+    region: singapore
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.worker
+    healthCheckPath: /healthz
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: auragate-redis
+          property: connectionString
+      - key: DATABASE_URL
+        sync: false
+      - key: WORKER_CONCURRENCY
+        value: "2"
+      - key: DB_POOL_SIZE
+        value: "2"

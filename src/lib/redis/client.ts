@@ -82,8 +82,8 @@ function createRedisClient(): Redis {
     // Wait for Redis READY event before accepting commands
     enableReadyCheck: true,
 
-    // Connect immediately on instantiation
-    lazyConnect: false,
+    // Connect on the first command so a Next.js build does not open sockets.
+    lazyConnect: true,
 
     // Connection metadata for Redis CLIENT LIST identification
     connectionName: "auragate-gateway",
@@ -122,7 +122,6 @@ function createRedisClient(): Redis {
 // Prevents connection exhaustion during Next.js hot-module-replacement.
 // ---------------------------------------------------------------------------
 declare global {
-  // eslint-disable-next-line no-var
   var __redis: Redis | undefined;
 }
 

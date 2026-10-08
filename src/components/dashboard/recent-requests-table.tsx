@@ -1,4 +1,6 @@
-export function RecentRequestsTable({ requests }: { requests: any[] }) {
+import type { RequestSummary } from "@/lib/dashboard/types";
+
+export function RecentRequestsTable({ requests }: { requests: RequestSummary[] }) {
   if (!requests || requests.length === 0) {
     return <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center text-zinc-500">No recent requests</div>;
   }
@@ -26,7 +28,7 @@ export function RecentRequestsTable({ requests }: { requests: any[] }) {
             {(Array.isArray(requests) ? requests : []).map((req) => (
               <tr key={req.id} className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap">{new Date(req.time).toLocaleTimeString()}</td>
-                <td className="px-6 py-4">{req.tenantName || req.tenantId?.substring(0,8)}</td>
+                <td className="px-6 py-4">{req.tenantName || "Unknown tenant"}</td>
                 <td className="px-6 py-4">
                   <span className="bg-zinc-800 px-2 py-1 rounded text-zinc-300">{req.model}</span>
                 </td>
@@ -42,7 +44,7 @@ export function RecentRequestsTable({ requests }: { requests: any[] }) {
                   )}
                 </td>
                 <td className="px-6 py-4">{req.promptTokens + req.completionTokens}</td>
-                <td className="px-6 py-4 font-mono">${Number(req.costUsd).toFixed(4)}</td>
+                <td className="px-6 py-4 font-mono">${Number(req.costUsd).toFixed(6)}</td>
                 <td className="px-6 py-4">{req.latencyMs}ms</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded text-xs ${

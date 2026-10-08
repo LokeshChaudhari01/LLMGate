@@ -49,7 +49,7 @@ if (!process.env.DATABASE_URL) {
 // ---------------------------------------------------------------------------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: parseInt(process.env.DB_POOL_SIZE || "10", 10),
+  max: parseInt(process.env.DB_POOL_SIZE || "3", 10),
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
 });
@@ -81,7 +81,6 @@ const drizzleClient = drizzle(pool, {
 // In production, there is no HMR, so this is a no-op.
 // ---------------------------------------------------------------------------
 declare global {
-  // eslint-disable-next-line no-var
   var __db: typeof drizzleClient | undefined;
 }
 

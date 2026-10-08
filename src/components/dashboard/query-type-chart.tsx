@@ -1,6 +1,7 @@
 "use client";
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import type { QueryTypeSummary } from "@/lib/dashboard/types";
 
 const COLORS: Record<string, string> = {
   simple: "#10b981",  // emerald
@@ -9,7 +10,7 @@ const COLORS: Record<string, string> = {
   unknown: "#6b7280", // gray
 };
 
-export function QueryTypeChart({ data, dataKey = "requests" }: { data: any[], dataKey?: string }) {
+export function QueryTypeChart({ data, dataKey = "requests" }: { data: QueryTypeSummary[], dataKey?: "requests" | "totalCost" }) {
   if (!data || data.length === 0) return <div className="h-64 flex items-center justify-center text-zinc-500">No data</div>;
 
   return (
@@ -30,14 +31,14 @@ export function QueryTypeChart({ data, dataKey = "requests" }: { data: any[], da
               dataKey={dataKey}
               nameKey="queryType"
             >
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[entry.queryType] || COLORS.unknown} />
+              {data.map((entry) => (
+                <Cell key={entry.queryType} fill={COLORS[entry.queryType] || COLORS.unknown} />
               ))}
             </Pie>
             <Tooltip
               contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", borderRadius: "8px" }}
               itemStyle={{ color: "#f4f4f5" }}
-              formatter={(value) => dataKey === "totalCost" ? `$${Number(value).toFixed(4)}` : value}
+              formatter={(value) => dataKey === "totalCost" ? `$${Number(value).toFixed(6)}` : value}
             />
             <Legend verticalAlign="bottom" height={36} />
           </PieChart>

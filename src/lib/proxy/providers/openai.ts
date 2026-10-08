@@ -12,12 +12,12 @@
 //   4. Zero changes needed in route.ts or stream-handler.ts
 // =============================================================================
 
-import type { LLMProvider, StreamRequest } from "./types";
+import type { LLMProvider } from "./types";
 
 export const openaiProvider: LLMProvider = {
   name: "openai",
 
-  async stream(_request: StreamRequest, _signal: AbortSignal): Promise<Response> {
+  async stream(): Promise<Response> {
     throw new Error(
       "[AuraGate] OpenAI provider is not yet implemented. " +
         "To enable: implement stream() in src/lib/proxy/providers/openai.ts " +

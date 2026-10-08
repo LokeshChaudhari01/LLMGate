@@ -1,14 +1,20 @@
 "use client";
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import type { ModelSummary, QueryTypeSummary } from "@/lib/dashboard/types";
 
-export function ModelBarChart({ data, dataKey = "requests", fill = "#8b5cf6" }: { data: any[], dataKey?: string, fill?: string }) {
+export function ModelBarChart({ data, dataKey = "requests", categoryKey = "model", fill = "#8b5cf6" }: {
+  data: (ModelSummary | QueryTypeSummary)[];
+  dataKey?: "requests" | "avgLatency" | "successRate";
+  categoryKey?: "model" | "queryType";
+  fill?: string;
+}) {
   if (!data || data.length === 0) return <div className="h-64 flex items-center justify-center text-zinc-500">No data</div>;
 
   const titles: Record<string, string> = {
     requests: "Requests by Model",
     avgLatency: "Avg Latency by Model (ms)",
-    successRate: "Success Rate by Model (%)",
+    successRate: categoryKey === "queryType" ? "Success Rate by Query Type (%)" : "Success Rate by Model (%)",
   };
 
   return (
@@ -18,7 +24,7 @@ export function ModelBarChart({ data, dataKey = "requests", fill = "#8b5cf6" }: 
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-            <XAxis dataKey="model" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} angle={-15} textAnchor="end" />
+            <XAxis dataKey={categoryKey} stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} angle={-15} textAnchor="end" />
             <YAxis stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
             <Tooltip
               contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", borderRadius: "8px" }}

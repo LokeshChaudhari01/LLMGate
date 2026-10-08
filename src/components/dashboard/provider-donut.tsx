@@ -1,10 +1,11 @@
 "use client";
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import type { ProviderSummary } from "@/lib/dashboard/types";
 
 const COLORS = ["#3b82f6", "#8b5cf6", "#f59e0b", "#10b981"];
 
-export function ProviderDonut({ data, dataKey = "requests" }: { data: any[], dataKey?: string }) {
+export function ProviderDonut({ data, dataKey = "requests" }: { data: ProviderSummary[], dataKey?: "requests" | "totalCost" }) {
   if (!data || data.length === 0) return <div className="h-64 flex items-center justify-center text-zinc-500">No data</div>;
 
   return (
@@ -26,13 +27,13 @@ export function ProviderDonut({ data, dataKey = "requests" }: { data: any[], dat
               nameKey="provider"
             >
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                <Cell key={entry.provider} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
             <Tooltip
               contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", borderRadius: "8px" }}
               itemStyle={{ color: "#f4f4f5" }}
-              formatter={(value) => dataKey === "totalCost" ? `$${Number(value).toFixed(4)}` : value}
+              formatter={(value) => dataKey === "totalCost" ? `$${Number(value).toFixed(6)}` : value}
             />
             <Legend verticalAlign="bottom" height={36} />
           </PieChart>

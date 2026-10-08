@@ -3,7 +3,7 @@
 // =============================================================================
 // Purpose:
 //   Determines which LLM model to use using a multi-signal scoring function.
-//   Routes between Gemini Flash (simple), Groq Llama 3.3 (coding), and
+//   Routes between Gemini Flash (simple), Groq GPT OSS 120B (coding), and
 //   Gemini Pro (complex).
 //
 // Signals:
@@ -16,7 +16,7 @@
 // Returns RouteDecision consumed by stream-handler.ts.
 // =============================================================================
 
-import type { Message, RouteDecision, RoutingReason } from "./providers/types";
+import type { Message, RouteDecision } from "./providers/types";
 
 const SIGNAL_WEIGHTS = {
   CODE_BLOCK:          40,  // ```...``` present
@@ -54,7 +54,7 @@ export function selectProvider(
 
   const estimatedTokens = Math.ceil(fullText.length / 4);
   
-  if (requestedModel) {
+  if (requestedModel && requestedModel !== "auto") {
     return {
       providerName: "gemini",
       model: requestedModel,
@@ -97,7 +97,7 @@ export function selectProvider(
   if (isCoding) {
     return {
       providerName: "groq",
-      model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
       estimatedTokens,
       queryType: "coding",
       complexityScore: score,
@@ -105,10 +105,10 @@ export function selectProvider(
     };
   }
 
-  if (score >= 30) {
+  if (score >= 24) {
     return {
       providerName: "gemini",
-      model: "gemini-2.5-pro", // or gemini-1.5-pro based on what's configured
+      model: "gemini-2.5-pro",
       estimatedTokens,
       queryType: "complex",
       complexityScore: score,
@@ -118,7 +118,7 @@ export function selectProvider(
 
   return {
     providerName: "gemini",
-    model: "gemini-2.5-flash", // or gemini-1.5-flash
+    model: "gemini-2.5-flash",
     estimatedTokens,
     queryType: "simple",
     complexityScore: score,

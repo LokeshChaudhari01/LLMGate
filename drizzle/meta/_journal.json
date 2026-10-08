@@ -8,6 +8,34 @@
       "when": 1781870967312,
       "tag": "0000_init_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781870967313,
+      "tag": "0001_add_routing_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781870967314,
+      "tag": "0002_add_processed_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781870967315,
+      "tag": "0003_add_routing_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781870967316,
+      "tag": "0004_budget_reservations",
+      "breakpoints": true
     }
   ]
 }

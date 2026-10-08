@@ -27,7 +27,7 @@ export default function AdminLogin() {
         const data = await res.json();
         setError(data.error || "Login failed");
       }
-    } catch (err) {
+    } catch {
       setError("Network error");
     } finally {
       setLoading(false);
@@ -41,11 +41,13 @@ export default function AdminLogin() {
           LLMGate Admin
         </h1>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} noValidate className="space-y-4">
           <div>
-            <label className="block text-sm text-zinc-400 mb-1">Password</label>
+            <label htmlFor="admin-password" className="block text-sm text-zinc-400 mb-1">Password</label>
             <input
+              id="admin-password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-zinc-100"
@@ -54,7 +56,7 @@ export default function AdminLogin() {
             />
           </div>
 
-          {error && <div className="text-red-400 text-sm font-medium">{error}</div>}
+          {error && <div role="alert" className="text-red-400 text-sm font-medium">{error}</div>}
 
           <button
             type="submit"
