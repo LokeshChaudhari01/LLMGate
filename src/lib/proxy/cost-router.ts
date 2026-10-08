@@ -44,7 +44,8 @@ const COMPLEXITY_KEYWORDS = [
 
 export function selectProvider(
   messages: Message[],
-  requestedModel?: string
+  requestedModel?: string,
+  groqAvailable = true
 ): RouteDecision {
   const fullText = messages
     .filter(m => m.role === "user")
@@ -95,6 +96,16 @@ export function selectProvider(
   const isCoding = hasCodeBlock || codeKeywordMatches >= 3;
 
   if (isCoding) {
+    if (!groqAvailable) {
+      return {
+        providerName: "gemini",
+        model: "gemini-2.5-flash",
+        estimatedTokens,
+        queryType: "coding",
+        complexityScore: score,
+        routingReason: "fallback_provider",
+      };
+    }
     return {
       providerName: "groq",
       model: "openai/gpt-oss-120b",

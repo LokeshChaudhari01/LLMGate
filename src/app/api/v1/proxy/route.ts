@@ -240,7 +240,11 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   // ===== Step 8: Cost Routing (AD-4) =====
-  const routeDecision = selectProvider(sanitizedMessages, body.model === "auto" ? undefined : body.model);
+  const routeDecision = selectProvider(
+    sanitizedMessages,
+    body.model === "auto" ? undefined : body.model,
+    Boolean(process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.startsWith("your_"))
+  );
 
   // ===== Step 9: Resolve Provider from Registry (AD-3) =====
   let provider;

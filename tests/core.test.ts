@@ -8,6 +8,7 @@ test("automatic model selection handles simple, coding, and complex prompts", ()
   const message = (content: string) => [{ role: "user" as const, content }];
   assert.equal(selectProvider(message("Hello"), "auto").model, "gemini-2.5-flash");
   assert.equal(selectProvider(message("Debug this TypeScript function with an async import error")).model, "openai/gpt-oss-120b");
+  assert.equal(selectProvider(message("Debug this TypeScript function with an async import error"), undefined, false).model, "gemini-2.5-flash");
   assert.equal(selectProvider(message("Analyze the architecture and scalability tradeoffs in detail")).model, "gemini-2.5-pro");
 });
 
