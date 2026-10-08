@@ -164,8 +164,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (typeof body.model !== "string") {
       return badRequest(requestId, "model must be a string", rateLimitHeaders);
     }
-    // Only Gemini models are fully implemented in Phase 4
-    const validModels = ["gemini-2.5-flash", "gemini-2.5-pro"];
+    const validModels = ["gemini-2.5-flash", "gemini-3.5-flash"];
     if (!validModels.includes(body.model)) {
       return badRequest(
         requestId,

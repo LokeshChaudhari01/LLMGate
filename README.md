@@ -6,7 +6,7 @@ It is built as an interview-ready demonstration of gateway tradeoffs, not as a g
 
 ## What it does
 
-- **Routing:** simple prompts use Gemini 2.5 Flash, code prompts use Groq GPT OSS 120B, and more complex prompts use Gemini 2.5 Pro. Clients can explicitly select either Gemini model.
+- **Routing:** simple prompts use Gemini 2.5 Flash, code prompts use Groq GPT OSS 120B, and more complex prompts use Gemini 3.5 Flash. Clients can explicitly select either Gemini model.
 - **Failover:** an upstream error before streaming starts triggers one fallback attempt to Gemini Flash. An error after streaming starts sends an SSE error event; it cannot safely replay already delivered tokens.
 - **Budgets:** an atomic PostgreSQL update reserves a conservative maximum cost before the provider call. A BullMQ worker uses reported token counts to charge the actual amount and refund the rest. A failed request is refunded.
 - **Rate limit and cache:** Redis runs a per-key sliding window limit and a tenant-scoped exact-prompt cache. Cache hits return the same SSE format and cost no provider tokens.
@@ -50,7 +50,7 @@ curl -N http://localhost:3000/api/v1/proxy \
   -d '{"messages":[{"role":"user","content":"Explain how a database index works."}],"model":"auto"}'
 ```
 
-The endpoint accepts 1–50 `system`, `user`, or `assistant` messages, up to 100,000 total content characters, optional `temperature` between 0 and 2, and `model` set to `auto`, `gemini-2.5-flash`, or `gemini-2.5-pro`. Output is capped at 1,024 tokens. It streams SSE `data:` events and ends with `data: [DONE]`. Errors after streaming starts arrive as `event: error`.
+The endpoint accepts 1–50 `system`, `user`, or `assistant` messages, up to 100,000 total content characters, optional `temperature` between 0 and 2, and `model` set to `auto`, `gemini-2.5-flash`, or `gemini-3.5-flash`. Output is capped at 1,024 tokens. It streams SSE `data:` events and ends with `data: [DONE]`. Errors after streaming starts arrive as `event: error`.
 
 ## Deploy
 

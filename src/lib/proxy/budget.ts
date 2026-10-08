@@ -13,7 +13,7 @@ export const MAX_INPUT_CHARACTERS = 100_000;
 export function estimateReservation(messages: Message[]): string {
   const inputBytes = messages.reduce((sum, message) => sum + Buffer.byteLength(message.content, "utf8"), 0);
   const inputTokenBound = inputBytes + 2_048;
-  // Gemini 2.5 Pro's higher >200k-token tier is used conservatively here.
+  // This exceeds the supported models' standard text-token rates.
   const microDollars = Math.ceil(inputTokenBound * 2.50 + MAX_OUTPUT_TOKENS * 15.00);
   return (microDollars / 1_000_000).toFixed(6);
 }

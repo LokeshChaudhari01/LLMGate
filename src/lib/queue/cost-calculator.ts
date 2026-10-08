@@ -8,6 +8,7 @@ interface ModelPricing {
 
 const PRICING: Record<string, ModelPricing> = {
   "gemini-2.5-flash": { inputPer1M: 0.30, outputPer1M: 2.50 },
+  "gemini-3.5-flash": { inputPer1M: 1.50, outputPer1M: 9.00 },
   "gemini-2.5-pro": { inputPer1M: 1.25, outputPer1M: 10.00 },
   "openai/gpt-oss-120b": { inputPer1M: 0.15, outputPer1M: 0.60 },
 };
