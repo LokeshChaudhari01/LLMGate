@@ -12,6 +12,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:integration": "tsx scripts/integration-smoke.ts",
+    "demo": "tsx scripts/demo.ts",
     "lint": "eslint"
   },
   "dependencies": {

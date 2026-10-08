@@ -2,7 +2,7 @@
 
 LLMGate is a multi-tenant AI API gateway and admin dashboard. A client sends one OpenAI-style chat request to `POST /api/v1/proxy`; the gateway authenticates the client's API key, enforces a request limit and tenant budget, redacts common sensitive strings, selects a model, streams the answer, and records usage for the dashboard. Internal Redis keys, database names, and response headers retain the original AuraGate service identifier.
 
-It is built as an interview-ready demonstration of gateway tradeoffs, not as a general-purpose AI platform.
+It is a compact reference implementation of gateway tradeoffs.
 
 ## What it does
 
@@ -27,6 +27,14 @@ flowchart LR
 ```
 
 The proxy and worker use the Node.js runtime. The response is Server-Sent Events (SSE), including on cache hits. Usage is queued before the final `[DONE]` event, so accounting does not depend on a background task surviving after a Vercel function finishes.
+
+## Live demo
+
+The live app is at [auragate-ai-gateway.vercel.app](https://auragate-ai-gateway.vercel.app). Log in with your admin password to view the **Demo Workspace** tenant, its key, and request analytics. The raw key is saved only in the local, Git-ignored `.env` as `DEMO_API_KEY`; the dashboard cannot reveal it again after creation.
+
+From this project directory, run `npm run demo`. It sends a simple request, repeats it to show a cache hit, then sends coding and complex requests. It prints the selected models and short answer previews without printing the API key. The script uses the live deployment by default; set `DEMO_BASE_URL` to target another deployment.
+
+For a short walkthrough, show the tenant budget and API key, run the demo command, then refresh the overview and analytics pages. Explain that Render Free can pause the worker, so usage may appear about a minute after the first request. The gateway can still stream a response while the worker wakes.
 
 ## Local setup
 
@@ -64,7 +72,7 @@ The intended split is **Vercel for Next.js**, **Neon for PostgreSQL**, and **Ren
 
 The app and worker must use the **same** Neon database and Redis instance. On Vercel, use a Neon pooled application URL where available; keep pool sizes modest (`DB_POOL_SIZE`, default 3) because serverless instances each make their own pool.
 
-Render Free Web Services sleep after 15 minutes without incoming HTTP traffic. The first proxy request starts an HTTP wake request while the LLM runs; queued usage may take about a minute to appear after a cold start. Render Free Key Value stores data only in memory: a restart can lose queued jobs and cached data. Stale budget reservations are released by the cleanup job after the worker next runs, but lost usage jobs cannot be recovered. This is suitable for an interview demo, not reliable billing. Render's free allowances also have monthly usage limits; check usage in your Render dashboard to keep spending at $0.
+Render Free Web Services sleep after 15 minutes without incoming HTTP traffic. The first proxy request starts an HTTP wake request while the LLM runs; queued usage may take about a minute to appear after a cold start. Render Free Key Value stores data only in memory: a restart can lose queued jobs and cached data. Stale budget reservations are released by the cleanup job after the worker next runs, but lost usage jobs cannot be recovered. This free-tier deployment is suitable for demonstrations and development, but not reliable billing. Render's free allowances also have monthly usage limits; check usage in your Render dashboard to keep spending at $0.
 
 ## Design choices and limits
 
