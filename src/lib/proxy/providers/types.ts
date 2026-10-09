@@ -36,6 +36,10 @@ export interface ProxyRequest {
   temperature?: number;
   /** Whether to stream the response. Always true for this gateway. */
   stream?: boolean;
+  /** Per-request output ceiling, at most the gateway default. */
+  max_output_tokens?: number;
+  /** Include a final safe telemetry event in the SSE stream. */
+  include_gateway_meta?: boolean;
 }
 
 // ---------------------------------------------------------------------------

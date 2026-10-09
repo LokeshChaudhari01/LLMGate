@@ -74,7 +74,8 @@ export function generateCacheKey(
   tenantId: string,
   model: string,
   messages: unknown[],
-  temperature: number = 1.0
+  temperature: number = 1.0,
+  maxOutputTokens = 1024
 ): string {
   const config = getConfig();
 
@@ -84,6 +85,7 @@ export function generateCacheKey(
     m: model,
     msg: messages,
     t: temperature,
+    maxOutputTokens,
   });
 
   const hash = createHash("sha256").update(canonical).digest("hex");

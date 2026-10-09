@@ -10,11 +10,11 @@ export const MAX_INPUT_CHARACTERS = 100_000;
  * fallback), and a byte count plus message overhead as an input-token bound.
  * The worker refunds the unused amount after it receives provider usage.
  */
-export function estimateReservation(messages: Message[]): string {
+export function estimateReservation(messages: Message[], maxOutputTokens = MAX_OUTPUT_TOKENS): string {
   const inputBytes = messages.reduce((sum, message) => sum + Buffer.byteLength(message.content, "utf8"), 0);
   const inputTokenBound = inputBytes + 2_048;
   // This exceeds the supported models' standard text-token rates.
-  const microDollars = Math.ceil(inputTokenBound * 2.50 + MAX_OUTPUT_TOKENS * 15.00);
+  const microDollars = Math.ceil(inputTokenBound * 2.50 + maxOutputTokens * 15.00);
   return (microDollars / 1_000_000).toFixed(6);
 }
 

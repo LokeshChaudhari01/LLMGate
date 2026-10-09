@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "worker": "npx tsx src/lib/queue/start-worker.ts",
     "db:migrate": "drizzle-kit migrate && npm run db:partitions",
@@ -13,6 +13,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "test:integration": "tsx scripts/integration-smoke.ts",
     "demo": "tsx scripts/demo.ts",
+    "demo:setup-public": "tsx scripts/setup-public-demo.ts",
+    "demo:rotate-keys": "tsx scripts/rotate-demo-keys.ts",
     "lint": "eslint"
   },
   "dependencies": {

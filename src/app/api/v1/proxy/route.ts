@@ -34,7 +34,7 @@ import { selectProvider } from "@/lib/proxy/cost-router";
 import { createProxyStream } from "@/lib/proxy/stream-handler";
 import { logUsageAsync } from "@/lib/proxy/usage-logger";
 import { wakeWorker } from "@/lib/queue/wake-worker";
-import { estimateReservation, MAX_INPUT_CHARACTERS, reserveBudget } from "@/lib/proxy/budget";
+import { estimateReservation, MAX_INPUT_CHARACTERS, MAX_OUTPUT_TOKENS, reserveBudget } from "@/lib/proxy/budget";
 import { getProvider } from "@/lib/proxy/providers/registry";
 import {
   unauthorized,
@@ -174,6 +174,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
   }
 
+  if (body.max_output_tokens !== undefined &&
+      (!Number.isInteger(body.max_output_tokens) || body.max_output_tokens < 1 || body.max_output_tokens > MAX_OUTPUT_TOKENS)) {
+    return badRequest(requestId, `max_output_tokens must be an integer from 1 to ${MAX_OUTPUT_TOKENS}`, rateLimitHeaders);
+  }
+  if (body.include_gateway_meta !== undefined && typeof body.include_gateway_meta !== "boolean") {
+    return badRequest(requestId, "include_gateway_meta must be a boolean", rateLimitHeaders);
+  }
+
+  const maxOutputTokens = body.max_output_tokens ?? MAX_OUTPUT_TOKENS;
+
   // The free Render worker can be asleep. Start waking it while the provider
   // request runs so queued usage can be processed after the cold start.
   wakeWorker();
@@ -194,7 +204,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     auth.tenantId,
     body.model ?? "auto",
     sanitizedMessages,
-    body.temperature
+    body.temperature,
+    maxOutputTokens
   );
 
   const cached = await getCachedResponse(cacheKey);
@@ -221,7 +232,20 @@ export async function POST(request: NextRequest): Promise<Response> {
       routingReason: "cache_hit",
     });
 
-    const cachedChunk = `data: ${JSON.stringify({ choices: [{ delta: { content: cached.completion } }] })}\n\ndata: [DONE]\n\n`;
+    const cachedMeta = body.include_gateway_meta ? `event: gateway-meta\ndata: ${JSON.stringify({
+      requestId,
+      provider: cached.provider,
+      model: cached.model,
+      routingReason: "cache_hit",
+      failoverUsed: false,
+      latencyMs: Date.now() - startedAt,
+      promptTokens: cached.promptTokens,
+      completionTokens: cached.completionTokens,
+      estimatedCostUsd: "0.000000",
+      cacheHit: true,
+      piiRedacted: piiDetected,
+    })}\n\n` : "";
+    const cachedChunk = `data: ${JSON.stringify({ choices: [{ delta: { content: cached.completion } }] })}\n\n${cachedMeta}data: [DONE]\n\n`;
     return new Response(cachedChunk, {
       status: 200,
       headers: {
@@ -312,7 +336,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const reserved = await reserveBudget(
       requestId,
       auth.tenantId,
-      estimateReservation(sanitizedMessages)
+      estimateReservation(sanitizedMessages, maxOutputTokens)
     );
     if (!reserved) return budgetExceeded(requestId);
   } catch (error) {
@@ -358,7 +382,12 @@ export async function POST(request: NextRequest): Promise<Response> {
         complexityScore: routeDecision.complexityScore,
       });
     },
-    body.temperature
+    body.temperature,
+    {
+      maxOutputTokens,
+      emitMetadata: body.include_gateway_meta,
+      piiRedacted: piiDetected,
+    }
   );
 
   // ===== Return SSE Response =====
@@ -372,7 +401,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       "X-Cache": "MISS",
       "X-AuraGate-Provider": routeDecision.providerName,
       "X-AuraGate-Model": routeDecision.model,
-      "X-AuraGate-Failover": "false",
       "X-RateLimit-Limit": rateLimit.limit.toString(),
       "X-RateLimit-Remaining": rateLimit.remaining.toString(),
       "X-RateLimit-Reset": rateLimit.resetMs.toString(),

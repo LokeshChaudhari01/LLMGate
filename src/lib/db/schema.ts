@@ -29,6 +29,8 @@ import {
   boolean,
   timestamp,
   integer,
+  date,
+  primaryKey,
   index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -184,6 +186,15 @@ export const budgetReservations = pgTable("budget_reservations", {
   amountUsd: decimal("amount_usd", { precision: 19, scale: 6 }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("idx_budget_reservations_created_at").on(table.createdAt)]);
+
+// Durable counters for the anonymous public playground. Redis is intentionally
+// not used here: a free Redis restart must not reset the daily provider cap.
+export const publicDemoQuota = pgTable("public_demo_quota", {
+  day: date("day").notNull(),
+  scope: varchar("scope", { length: 16 }).notNull(),
+  identity: varchar("identity", { length: 64 }).notNull(),
+  used: integer("used").notNull().default(0),
+}, (table) => [primaryKey({ columns: [table.day, table.scope, table.identity] })]);
 
 // =============================================================================
 // Relations — Drizzle Relational Query API

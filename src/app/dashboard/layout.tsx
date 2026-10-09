@@ -18,6 +18,7 @@ export default function DashboardLayout({
 
   const navItems = [
     { name: "Overview", path: "/dashboard" },
+    { name: "Query Playground", path: "/dashboard/playground" },
     { name: "Routing Analytics", path: "/dashboard/analytics" },
     { name: "Tenants", path: "/dashboard/tenants" },
     { name: "API Keys", path: "/dashboard/keys" },

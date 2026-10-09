@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LLMGate Admin",
-  description: "AI gateway routing, usage, and tenant administration",
+  title: "LLMGate | AI Gateway",
+  description: "Try an AI request and inspect how LLMGate routes, caches, and records it.",
 };
 
 export default function RootLayout({

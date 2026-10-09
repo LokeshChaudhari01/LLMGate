@@ -28,6 +28,13 @@ import type {
   RoutingReason,
 } from "./providers/types";
 import { MAX_OUTPUT_TOKENS } from "./budget";
+import { calculateCost } from "@/lib/queue/cost-calculator";
+
+export interface GatewayStreamOptions {
+  maxOutputTokens?: number;
+  emitMetadata?: boolean;
+  piiRedacted?: boolean;
+}
 
 // ---------------------------------------------------------------------------
 // SSE Parsing Helpers
@@ -150,7 +157,8 @@ interface StreamAttemptResult {
 async function attemptStream(
   config: ProviderConfig,
   messages: Message[],
-  temperature?: number
+  temperature?: number,
+  maxOutputTokens = MAX_OUTPUT_TOKENS
 ): Promise<StreamAttemptResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs);
@@ -162,7 +170,7 @@ async function attemptStream(
         messages,
         apiKey: config.apiKey,
         temperature,
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
+        maxOutputTokens,
       },
       controller.signal
     );
@@ -225,7 +233,8 @@ export function createProxyStream(
   fallbackConfig: ProviderConfig,
   routingReason: RoutingReason,
   onComplete: (result: StreamResult) => Promise<void>,
-  temperature?: number
+  temperature?: number,
+  options: GatewayStreamOptions = {}
 ): ReadableStream<Uint8Array> {
   const startTime = Date.now();
 
@@ -241,7 +250,7 @@ export function createProxyStream(
       let actualRoutingReason = routingReason;
 
       // ----- Phase 1: Connect (with failover) -----
-      let attempt = await attemptStream(primaryConfig, messages, temperature);
+      let attempt = await attemptStream(primaryConfig, messages, temperature, options.maxOutputTokens);
 
       if (!attempt.success) {
         console.warn(
@@ -249,7 +258,7 @@ export function createProxyStream(
         );
 
         // Try fallback
-        attempt = await attemptStream(fallbackConfig, messages, temperature);
+        attempt = await attemptStream(fallbackConfig, messages, temperature, options.maxOutputTokens);
         if (!attempt.success) {
           // Both failed — emit error and close
           console.error(
@@ -379,7 +388,7 @@ export function createProxyStream(
 
         // Queue usage before ending the response so the serverless runtime
         // cannot discard the job when the connection closes.
-        await onComplete({
+        const finalResult: StreamResult = {
           requestId,
           completion: completionText,
           provider: usedProvider,
@@ -391,7 +400,24 @@ export function createProxyStream(
           promptTokens,
           completionTokens,
           isComplete: true,
-        });
+        };
+        await onComplete(finalResult);
+        if (options.emitMetadata) {
+          const metadata = {
+            requestId,
+            provider: usedProvider,
+            model: usedModel,
+            routingReason: actualRoutingReason,
+            failoverUsed,
+            latencyMs: finalResult.latencyMs,
+            promptTokens,
+            completionTokens,
+            estimatedCostUsd: calculateCost(usedModel, promptTokens, completionTokens),
+            cacheHit: false,
+            piiRedacted: Boolean(options.piiRedacted),
+          };
+          controller.enqueue(encoder.encode(`event: gateway-meta\ndata: ${JSON.stringify(metadata)}\n\n`));
+        }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       } catch (error) {

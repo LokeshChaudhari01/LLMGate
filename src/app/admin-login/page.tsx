@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function AdminLogin() {
   const [password, setPassword] = useState("");
@@ -66,6 +67,7 @@ export default function AdminLogin() {
             {loading ? "Authenticating..." : "Sign In"}
           </button>
         </form>
+        <Link href="/" className="mt-6 block text-center text-sm text-zinc-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Back to public demo</Link>
       </div>
     </div>
   );

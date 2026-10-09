@@ -1,6 +1,6 @@
 # LLMGate
 
-LLMGate is a multi-tenant AI API gateway and admin dashboard. A client sends one OpenAI-style chat request to `POST /api/v1/proxy`; the gateway authenticates the client's API key, enforces a request limit and tenant budget, redacts common sensitive strings, selects a model, streams the answer, and records usage for the dashboard. Internal Redis keys, database names, and response headers retain the original AuraGate service identifier.
+LLMGate is a multi-tenant AI API gateway with a public playground, a read-only sample dashboard, and a private operations dashboard. A client sends one OpenAI-style chat request to `POST /api/v1/proxy`; the gateway authenticates the client's API key, enforces a request limit and tenant budget, redacts common sensitive strings, selects a model, streams the answer, and records usage for the dashboard. Internal Redis keys, database names, and response headers retain the original AuraGate service identifier.
 
 It is a compact reference implementation of gateway tradeoffs.
 
@@ -12,6 +12,7 @@ It is a compact reference implementation of gateway tradeoffs.
 - **Rate limit and cache:** Redis runs a per-key sliding window limit and a tenant-scoped exact-prompt cache. Cache hits return the same SSE format and cost no provider tokens.
 - **Privacy:** emails, phone numbers, payment-card-like strings, US SSNs, and common secret assignments are redacted from all message roles before the provider call. This is regex redaction, not a guarantee that all sensitive content is detected.
 - **Admin:** password-protected dashboard for tenant budgets, API keys, request history, routing, latency, provider mix, and cost. Keys are stored as hashes and the raw key is shown only when created.
+- **Public demo:** visitors can inspect saved routing examples and a clearly labelled sample dashboard without an account. A separate public tenant allows one short live question per browser daily, with a PostgreSQL-enforced site-wide cap of 20 and a per-IP backstop of three. The public API key stays on the server.
 - **Observability:** each request has an ID. A worker writes usage to a partitioned PostgreSQL table. `GET /api/health` checks PostgreSQL, Redis, and the worker heartbeat.
 
 ```mermaid
@@ -30,7 +31,7 @@ The proxy and worker use the Node.js runtime. The response is Server-Sent Events
 
 ## Live demo
 
-The live app is at [auragate-ai-gateway.vercel.app](https://auragate-ai-gateway.vercel.app). Log in with your admin password to view the **Demo Workspace** tenant, its key, and request analytics. The raw key is saved only in the local, Git-ignored `.env` as `DEMO_API_KEY`; the dashboard cannot reveal it again after creation.
+The live app is at [auragate-ai-gateway.vercel.app](https://auragate-ai-gateway.vercel.app). Visitors enter through `/`, try a question at `/try`, or browse fixed sample telemetry at `/sample-dashboard`. The public samples never enter the real usage ledger. Log in with your admin password to use `/dashboard/playground` and view real requests from the **Demo Workspace** tenant. The raw admin playground key is saved only in the local, Git-ignored `.env` as `DEMO_API_KEY`; the dashboard cannot reveal it again after creation.
 
 From this project directory, run `npm run demo`. It sends a simple request, repeats it to show a cache hit, then sends coding and complex requests. It prints the selected models and short answer previews without printing the API key. The script uses the live deployment by default; set `DEMO_BASE_URL` to target another deployment.
 
@@ -45,7 +46,9 @@ Requires Node.js 22+, npm, Docker, a Gemini API key, and a Groq API key.
 3. Start Redis and, if you are not using Neon, PostgreSQL: `docker compose up -d`
 4. Apply schema and create monthly usage partitions: `npm run db:migrate`
 5. In separate terminals, run `npm run worker` and `npm run dev`.
-6. Open `http://localhost:3000/admin-login`, log in, create a tenant, and create an API key. `http://localhost:3000/api/health` should show all three checks as `ok`.
+6. Open `http://localhost:3000/` for the public pages. Log in at `/admin-login`, create a tenant, and create an API key. `/api/health` should show all three checks as `ok`.
+
+To enable local live public questions after migrating, run `npm run demo:setup-public`. It creates a dedicated **Public Demo** tenant with a small gateway budget and writes its tenant ID and raw key to the ignored local `.env` without printing the key. Saved examples and the sample dashboard work without this setup.
 
 The worker must keep running while you send requests; it reconciles budgets and populates the dashboard. Run `npm run db:partitions` periodically to create future monthly partitions.
 
@@ -58,7 +61,7 @@ curl -N http://localhost:3000/api/v1/proxy \
   -d '{"messages":[{"role":"user","content":"Explain how a database index works."}],"model":"auto"}'
 ```
 
-The endpoint accepts 1–50 `system`, `user`, or `assistant` messages, up to 100,000 total content characters, optional `temperature` between 0 and 2, and `model` set to `auto`, `gemini-2.5-flash`, or `gemini-3.5-flash`. Output is capped at 1,024 tokens. It streams SSE `data:` events and ends with `data: [DONE]`. Errors after streaming starts arrive as `event: error`.
+The endpoint accepts 1–50 `system`, `user`, or `assistant` messages, up to 100,000 total content characters, optional `temperature` between 0 and 2, and `model` set to `auto`, `gemini-2.5-flash`, or `gemini-3.5-flash`. Output is capped at 1,024 tokens; clients can request a lower `max_output_tokens`. It streams SSE `data:` events and ends with `data: [DONE]`. Errors after streaming starts arrive as `event: error`. Set `include_gateway_meta: true` to receive one final `event: gateway-meta` containing the actual provider/model, routing reason, failover flag, latency, token counts, cache status, PII redaction flag, and estimated cost.
 
 ## Deploy
 
@@ -69,6 +72,7 @@ The intended split is **Vercel for Next.js**, **Neon for PostgreSQL**, and **Ren
 3. In the Render Key Value page, copy its **External URL**. It must start with `rediss://`, which enables TLS and password authentication. The Blueprint permits external IPs because Vercel's outbound addresses change; keep this URL secret. The Key Value policy is `noeviction` so the cache cannot evict BullMQ jobs.
 4. In Vercel, set `DATABASE_URL` to the Neon application URL, `REDIS_URL` to Render's **External URL**, and `WORKER_WAKE_URL` to `https://auragate-worker.onrender.com` (use the actual URL Render shows). Also set `GEMINI_API_KEY`, `GROQ_API_KEY`, `ADMIN_PASSWORD`, and `ADMIN_JWT_SECRET`.
 5. Visit the worker's `/healthz` URL, then the Vercel app's `/api/health`. Create a tenant and key in the dashboard. Send the example proxy request twice; the second response should have `X-Cache: HIT`. Check that a usage row and budget change appear after the worker wakes.
+6. Run `npm run demo:setup-public` against the same Neon database. Add `SITE_DEMO_TENANT_ID` and `SITE_DEMO_API_KEY` from your local `.env` to Vercel's server environment. Set `ADMIN_PLAYGROUND_API_KEY` to the private key stored locally as `DEMO_API_KEY` for the private dashboard playground. Redeploy Vercel after setting these values. Never prefix raw keys with `NEXT_PUBLIC_` or `PUBLIC_`.
 
 The app and worker must use the **same** Neon database and Redis instance. On Vercel, use a Neon pooled application URL where available; keep pool sizes modest (`DB_POOL_SIZE`, default 3) because serverless instances each make their own pool.
 
@@ -78,7 +82,8 @@ Render Free Web Services sleep after 15 minutes without incoming HTTP traffic. T
 
 - Pricing is a checked-in snapshot for the three supported models. Update `src/lib/queue/cost-calculator.ts` when provider prices change. The budget reservation uses an upper bound; provider reports determine the final charge.
 - Redis rate limiting fails open if Redis is unavailable, but authentication and the PostgreSQL budget gate still apply. The health endpoint reports Redis or worker outages.
-- Exact-prompt caching includes tenant, model selection, sanitized messages, and temperature. It does not do semantic matching.
+- The public playground's PostgreSQL quota fails closed if the database is unavailable. Its one-per-browser cookie and per-IP cap are abuse friction; the durable site-wide cap and dedicated tenant budget are the hard backstops. It does not promise that every visitor can make a live request after the shared allowance is exhausted.
+- Exact-prompt caching includes tenant, model selection, sanitized messages, temperature, and output-token cap. It does not do semantic matching.
 - The gateway supports text chat and SSE only. It does not proxy tools, images, file uploads, or non-streaming responses.
 - A scheduled worker job refunds budget reservations older than 15 minutes when their usage job was never enqueued. Failed jobs retain their reservation for inspection and retry.
 - The admin login is a single shared password. For a larger deployment, replace it with individual accounts and audit logs.
