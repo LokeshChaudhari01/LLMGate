@@ -31,7 +31,7 @@ The proxy and worker use the Node.js runtime. The response is Server-Sent Events
 
 ## Live demo
 
-The live app is at [auragate-ai-gateway.vercel.app](https://auragate-ai-gateway.vercel.app). Visitors enter through `/`, try a question at `/try`, or browse fixed sample telemetry at `/sample-dashboard`. The public samples never enter the real usage ledger. Log in with your admin password to use `/dashboard/playground` and view real requests from the **Demo Workspace** tenant. The raw admin playground key is saved only in the local, Git-ignored `.env` as `DEMO_API_KEY`; the dashboard cannot reveal it again after creation.
+The live app is at [llmgate-ai-gateway.vercel.app](https://llmgate-ai-gateway.vercel.app). Visitors enter through `/`, try a question at `/try`, or browse fixed sample telemetry at `/sample-dashboard`. The public samples never enter the real usage ledger. Log in with your admin password to use `/dashboard/playground` and view real requests from the **Demo Workspace** tenant. The raw admin playground key is saved only in the local, Git-ignored `.env` as `DEMO_API_KEY`; the dashboard cannot reveal it again after creation.
 
 From this project directory, run `npm run demo`. It sends a simple request, repeats it to show a cache hit, then sends coding and complex requests. It prints the selected models and short answer previews without printing the API key. The script uses the live deployment by default; set `DEMO_BASE_URL` to target another deployment.
 

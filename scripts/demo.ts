@@ -2,7 +2,7 @@ import "dotenv/config";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-const baseUrl = (process.env.DEMO_BASE_URL || "https://auragate-ai-gateway.vercel.app").replace(/\/$/, "");
+const baseUrl = (process.env.DEMO_BASE_URL || "https://llmgate-ai-gateway.vercel.app").replace(/\/$/, "");
 const apiKey = process.env.DEMO_API_KEY;
 
 if (!apiKey?.startsWith("ag_")) {
