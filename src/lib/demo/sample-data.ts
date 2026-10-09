@@ -54,7 +54,7 @@ export const sampleScenarios: SampleScenario[] = [
     title: "More reasoning when it helps",
     prompt: "Compare the tradeoffs of a shared queue and per-tenant queues for an AI gateway.",
     answer: "A shared queue is simpler to operate and makes spare capacity available to every tenant. Per-tenant queues offer clearer isolation and fairness, but require more scheduling and monitoring. A small gateway can start shared and add tenant-aware limits before splitting queues.",
-    trace: { requestId: "sample-004", provider: "Gemini", model: "gemini-3.5-flash", routingReason: "complex_query", failoverUsed: false, latencyMs: 1420, promptTokens: 30, completionTokens: 59, estimatedCostUsd: "0.000576", cacheHit: false, piiRedacted: false },
+    trace: { requestId: "sample-004", provider: "Gemini", model: "gemini-2.5-pro", routingReason: "complex_query", failoverUsed: false, latencyMs: 1420, promptTokens: 30, completionTokens: 59, estimatedCostUsd: "0.000628", cacheHit: false, piiRedacted: false },
   },
   {
     id: "failover",

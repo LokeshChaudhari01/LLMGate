@@ -69,6 +69,8 @@ The tenant picker uses a native Select/Listbox. Its operating-system popup is ac
 
 The public trace uses the same zinc surfaces, blue focus/action color, and monospace data labels as the admin dashboard. Its numbered steps describe the actual access → route → response sequence. Saved scenarios and public sample metrics must display their illustrative status wherever they appear. Live request telemetry must reflect the completed request rather than the initially selected route when failover occurs.
 
+Model routing labels use human-readable names alongside the exact model ID. The overview states the configured simple, code, and complex routes; request rows and traces show the model that actually answered, including fallback.
+
 ## Do's and Don'ts
 
 - Do show remaining budget as a balance, not an original allocation.

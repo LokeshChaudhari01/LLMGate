@@ -13,8 +13,8 @@
 //   4. Rate limit → 429
 //   5. Parse & validate body → 400
 //   6. PII scrub user messages
-//   7. Prompt cache check → return cached (X-Cache: HIT)
-//   8. Cost route → select provider + model
+//   7. Cost route → select provider + model
+//   8. Prompt cache check → return cached (X-Cache: HIT)
 //   9. Stream to LLM with failover
 //   10. Non-blocking: cache write + usage log
 //
@@ -41,6 +41,7 @@ import {
   budgetExceeded,
   rateLimited,
   badRequest,
+  errorResponse,
   providerError,
 } from "@/lib/proxy/errors";
 import { checkRateLimit } from "@/lib/redis/rate-limiter";
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (typeof body.model !== "string") {
       return badRequest(requestId, "model must be a string", rateLimitHeaders);
     }
-    const validModels = ["gemini-2.5-flash", "gemini-3.5-flash"];
+    const validModels = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-2.5-pro"];
     if (!validModels.includes(body.model)) {
       return badRequest(
         requestId,
@@ -199,10 +200,18 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  // ===== Step 7: Prompt Cache Check (AD-7) =====
+  // Route before caching so an auto-routed prompt cannot reuse a response
+  // produced by an older routing policy or a different model.
+  const routeDecision = selectProvider(
+    sanitizedMessages,
+    body.model === "auto" ? undefined : body.model,
+    Boolean(process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.startsWith("your_"))
+  );
+
+  // ===== Step 8: Prompt Cache Check (AD-7) =====
   const cacheKey = generateCacheKey(
     auth.tenantId,
-    body.model ?? "auto",
+    routeDecision.model,
     sanitizedMessages,
     body.temperature,
     maxOutputTokens
@@ -262,13 +271,6 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
   }
 
-  // ===== Step 8: Cost Routing (AD-4) =====
-  const routeDecision = selectProvider(
-    sanitizedMessages,
-    body.model === "auto" ? undefined : body.model,
-    Boolean(process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.startsWith("your_"))
-  );
-
   // ===== Step 9: Resolve Provider from Registry (AD-3) =====
   let provider;
   try {
@@ -282,16 +284,21 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   // Resolve API key based on the selected provider
-  const apiKey =
-    routeDecision.providerName === "groq"
-      ? process.env.GROQ_API_KEY
+  const apiKey = routeDecision.providerName === "groq"
+    ? process.env.GROQ_API_KEY
+    : routeDecision.model === "gemini-2.5-pro"
+      ? process.env.GEMINI_PRO_API_KEY
       : process.env.GEMINI_API_KEY;
 
-  if (!apiKey) {
-    return providerError(
+  if (!apiKey || apiKey.startsWith("your_")) {
+    return errorResponse(
+      503,
+      routeDecision.model === "gemini-2.5-pro"
+        ? "Gemini Pro is unavailable until GEMINI_PRO_API_KEY is configured."
+        : `API key for provider "${routeDecision.providerName}" is not configured.`,
+      "provider_configuration_error",
       requestId,
-      `API key for provider "${routeDecision.providerName}" is not configured. Check .env`,
-      rateLimitHeaders
+      rateLimitHeaders,
     );
   }
 

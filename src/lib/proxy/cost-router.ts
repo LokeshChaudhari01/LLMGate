@@ -4,7 +4,7 @@
 // Purpose:
 //   Determines which LLM model to use using a multi-signal scoring function.
 //   Routes between Gemini Flash (simple), Groq GPT OSS 120B (coding), and
-//   Gemini 3.5 Flash (complex).
+//   Gemini 2.5 Pro (complex).
 //
 // Signals:
 //   - Code blocks (highest confidence)
@@ -119,7 +119,7 @@ export function selectProvider(
   if (score >= 24) {
     return {
       providerName: "gemini",
-      model: "gemini-3.5-flash",
+        model: "gemini-2.5-pro",
       estimatedTokens,
       queryType: "complex",
       complexityScore: score,

@@ -2,6 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ModelSummary, QueryTypeSummary } from "@/lib/dashboard/types";
+import { modelLabel } from "@/lib/model-label";
 
 export function ModelBarChart({ data, dataKey = "requests", categoryKey = "model", fill = "#8b5cf6" }: {
   data: (ModelSummary | QueryTypeSummary)[];
@@ -24,9 +25,10 @@ export function ModelBarChart({ data, dataKey = "requests", categoryKey = "model
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-            <XAxis dataKey={categoryKey} stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} angle={-15} textAnchor="end" />
+            <XAxis dataKey={categoryKey} stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} angle={-15} textAnchor="end" tickFormatter={(value: string) => categoryKey === "model" ? modelLabel(value) : value} />
             <YAxis stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
             <Tooltip
+              labelFormatter={(value) => categoryKey === "model" ? modelLabel(String(value)) : String(value)}
               contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", borderRadius: "8px" }}
               itemStyle={{ color: "#f4f4f5" }}
               formatter={(value) => {

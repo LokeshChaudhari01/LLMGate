@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { readGatewayStream } from "@/lib/demo/read-stream";
 import { routingLabel, sampleScenarios, type DemoTrace, type SampleScenario } from "@/lib/demo/sample-data";
+import { modelLabel } from "@/lib/model-label";
 
 type Mode = "public" | "admin";
 type Availability = { enabled: boolean; available: boolean; globalRemaining: number; visitorUsed?: boolean };
@@ -101,8 +102,9 @@ export function QueryWorkbench({ mode }: { mode: Mode }) {
         signal: controller.signal,
       });
       if (!response.ok) {
-        const data: { error?: string } = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? `The request failed (${response.status}).`);
+        const data: { error?: string | { message?: string } } = await response.json().catch(() => ({}));
+        const message = typeof data.error === "string" ? data.error : data.error?.message;
+        throw new Error(message ?? `The request failed (${response.status}).`);
       }
       setRequestId(response.headers.get("X-Request-ID") ?? "");
       setCache(response.headers.get("X-Cache") ?? "");
@@ -205,7 +207,7 @@ export function QueryWorkbench({ mode }: { mode: Mode }) {
           <TraceRow label="Access" value={sample ? "Illustrative key check" : trace || busy ? "Demo key checked" : "—"} />
           <TraceRow label="Route" value={trace ? routingLabel(trace.routingReason) : busy ? "Choosing model…" : "—"} />
           <TraceRow label="Provider" value={trace?.provider ?? "—"} />
-          <TraceRow label="Model" value={trace?.model ?? "—"} mono />
+          <TraceRow label="Model" value={trace ? `${modelLabel(trace.model)} · ${trace.model}` : "—"} mono />
           <TraceRow label="Cache" value={trace ? trace.cacheHit ? "Hit · no model call" : "Miss" : cache || "—"} />
           <TraceRow label="Fallback" value={trace ? trace.failoverUsed ? "Used" : "Not needed" : "—"} />
           <TraceRow label="Response time" value={trace ? `${trace.latencyMs.toLocaleString()} ms` : "—"} mono />

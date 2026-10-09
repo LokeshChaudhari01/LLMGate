@@ -3,13 +3,18 @@ import { test } from "node:test";
 import { selectProvider } from "../src/lib/proxy/cost-router";
 import { sanitizeMessages } from "../src/lib/proxy/pii-scrubber";
 import { calculateCost } from "../src/lib/queue/cost-calculator";
+import { modelLabel } from "../src/lib/model-label";
 
 test("automatic model selection handles simple, coding, and complex prompts", () => {
   const message = (content: string) => [{ role: "user" as const, content }];
   assert.equal(selectProvider(message("Hello"), "auto").model, "gemini-2.5-flash");
   assert.equal(selectProvider(message("Debug this TypeScript function with an async import error")).model, "openai/gpt-oss-120b");
   assert.equal(selectProvider(message("Debug this TypeScript function with an async import error"), undefined, false).model, "gemini-2.5-flash");
-  assert.equal(selectProvider(message("Analyze the architecture and scalability tradeoffs in detail")).model, "gemini-3.5-flash");
+  const complex = selectProvider(message("Analyze the architecture and scalability tradeoffs in detail"));
+  assert.equal(complex.model, "gemini-2.5-pro");
+  assert.equal(complex.providerName, "gemini");
+  assert.equal(selectProvider(message("Hello"), "gemini-2.5-pro").model, "gemini-2.5-pro");
+  assert.equal(modelLabel(complex.model), "Gemini Pro");
 });
 
 test("redacts client-supplied secrets across message roles", () => {

@@ -1,4 +1,5 @@
 import type { RequestSummary } from "@/lib/dashboard/types";
+import { modelLabel } from "@/lib/model-label";
 
 export function RecentRequestsTable({ requests }: { requests: RequestSummary[] }) {
   if (!requests || requests.length === 0) {
@@ -30,7 +31,10 @@ export function RecentRequestsTable({ requests }: { requests: RequestSummary[] }
                 <td className="px-6 py-4 whitespace-nowrap">{new Date(req.time).toLocaleTimeString()}</td>
                 <td className="px-6 py-4">{req.tenantName || "Unknown tenant"}</td>
                 <td className="px-6 py-4">
-                  <span className="bg-zinc-800 px-2 py-1 rounded text-zinc-300">{req.model}</span>
+                  <span className="inline-flex flex-col rounded bg-zinc-800 px-2 py-1 text-zinc-300">
+                    <span>{modelLabel(req.model)}</span>
+                    <span className="font-mono text-[11px] text-zinc-500">{req.model}</span>
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   {req.queryType && (
