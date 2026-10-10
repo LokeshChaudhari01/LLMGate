@@ -21,7 +21,6 @@ export const openrouterProvider: LLMProvider = {
         temperature: request.temperature ?? 0.7,
         stream: true,
         stream_options: { include_usage: true },
-        reasoning: { enabled: false },
         max_tokens: request.maxOutputTokens,
       }),
       signal,
