@@ -61,11 +61,11 @@ export default function SampleDashboard() {
           </section>
           <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 sm:p-6" aria-labelledby="mix-heading">
             <h2 id="mix-heading" className="font-semibold text-white">Model routing</h2>
-            <p className="mt-2 text-sm text-zinc-500">Simple questions use Gemini Flash, coding requests use Groq, and complex questions use Gemini Pro.</p>
+            <p className="mt-2 text-sm text-zinc-500">Simple questions use Gemini Flash, coding requests use Groq, and complex questions use OpenRouter.</p>
             <div className="mt-8 space-y-6">
               <div><div className="mb-2 flex justify-between text-sm"><span>Gemini Flash</span><span className="font-mono text-zinc-400">120 · 50%</span></div><div className="h-2 rounded-full bg-zinc-800"><div className="h-2 w-1/2 rounded-full bg-blue-500" /></div></div>
               <div><div className="mb-2 flex justify-between text-sm"><span>Groq</span><span className="font-mono text-zinc-400">90 · 37.5%</span></div><div className="h-2 rounded-full bg-zinc-800"><div className="h-2 w-[37.5%] rounded-full bg-violet-500" /></div></div>
-              <div><div className="mb-2 flex justify-between text-sm"><span>Gemini Pro</span><span className="font-mono text-zinc-400">30 · 12.5%</span></div><div className="h-2 rounded-full bg-zinc-800"><div className="h-2 w-[12.5%] rounded-full bg-sky-500" /></div></div>
+              <div><div className="mb-2 flex justify-between text-sm"><span>OpenRouter</span><span className="font-mono text-zinc-400">30 · 12.5%</span></div><div className="h-2 rounded-full bg-zinc-800"><div className="h-2 w-[12.5%] rounded-full bg-sky-500" /></div></div>
             </div>
           </section>
         </div>

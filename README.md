@@ -6,7 +6,7 @@ It is a compact reference implementation of gateway tradeoffs.
 
 ## What it does
 
-- **Routing:** simple prompts use Gemini 2.5 Flash, code prompts use Groq GPT OSS 120B, and more complex prompts use Gemini 2.5 Pro. Clients can explicitly select a supported Gemini model.
+- **Routing:** simple prompts use Gemini 2.5 Flash, code prompts use Groq GPT OSS 120B, and more complex prompts use OpenRouter's free models, starting with Gemma 4 31B. Clients can explicitly select a supported model.
 - **Failover:** an upstream error before streaming starts triggers one fallback attempt to Gemini Flash. An error after streaming starts sends an SSE error event; it cannot safely replay already delivered tokens.
 - **Budgets:** an atomic PostgreSQL update reserves a conservative maximum cost before the provider call. A BullMQ worker uses reported token counts to charge the actual amount and refund the rest. A failed request is refunded.
 - **Rate limit and cache:** Redis runs a per-key sliding window limit and a tenant-scoped exact-prompt cache. Cache hits return the same SSE format and cost no provider tokens.
@@ -23,6 +23,7 @@ flowchart LR
   Next --> Redis["Redis"]
   Next --> Gemini["Gemini"]
   Next --> Groq["Groq"]
+  Next --> OpenRouter["OpenRouter"]
   Redis --> Worker["BullMQ worker"]
   Worker --> Neon
 ```
@@ -33,16 +34,16 @@ The proxy and worker use the Node.js runtime. The response is Server-Sent Events
 
 The live app is at [llmgate-ai-gateway.vercel.app](https://llmgate-ai-gateway.vercel.app). Visitors enter through `/`, try a question at `/try`, or browse fixed sample telemetry at `/sample-dashboard`. The public samples never enter the real usage ledger. Log in with your admin password to use `/dashboard/playground` and view real requests from the **Demo Workspace** tenant. The raw admin playground key is saved only in the local, Git-ignored `.env` as `DEMO_API_KEY`; the dashboard cannot reveal it again after creation.
 
-From this project directory, run `npm run demo`. It sends a simple request, repeats it to show a cache hit, then sends coding and complex requests. It prints the selected models and short answer previews without printing the API key. The script uses the live deployment by default; set `DEMO_BASE_URL` to target another deployment.
+From this project directory, run `npm run demo`. It sends simple, coding, and complex requests, including cache repeats. It prints the actual models and short answer previews without printing the API key. The script uses the live deployment by default; set `DEMO_BASE_URL` to target another deployment.
 
 For a short walkthrough, show the tenant budget and API key, run the demo command, then refresh the overview and analytics pages. Explain that Render Free can pause the worker, so usage may appear about a minute after the first request. The gateway can still stream a response while the worker wakes.
 
 ## Local setup
 
-Requires Node.js 22+, npm, Docker, a Gemini API key, and a Groq API key.
+Requires Node.js 22+, npm, Docker, a Gemini API key, a Groq API key, and an OpenRouter API key.
 
 1. `npm ci`
-2. Copy `.env.example` to `.env`. Set `GEMINI_API_KEY`, `GEMINI_PRO_API_KEY`, `GROQ_API_KEY`, `ADMIN_PASSWORD`, and a random `ADMIN_JWT_SECRET` of at least 32 characters. The example database and Redis URLs are for the Compose services. If using Neon, replace `DATABASE_URL` with its connection string. Until `GEMINI_PRO_API_KEY` is set, complex requests return a configuration error without calling a model.
+2. Copy `.env.example` to `.env`. Set `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `ADMIN_PASSWORD`, and a random `ADMIN_JWT_SECRET` of at least 32 characters. The example database and Redis URLs are for the Compose services. If using Neon, replace `DATABASE_URL` with its connection string. Until `OPENROUTER_API_KEY` is set, complex requests return a configuration error without calling a model.
 3. Start Redis and, if you are not using Neon, PostgreSQL: `docker compose up -d`
 4. Apply schema and create monthly usage partitions: `npm run db:migrate`
 5. In separate terminals, run `npm run worker` and `npm run dev`.
@@ -61,7 +62,7 @@ curl -N http://localhost:3000/api/v1/proxy \
   -d '{"messages":[{"role":"user","content":"Explain how a database index works."}],"model":"auto"}'
 ```
 
-The endpoint accepts 1–50 `system`, `user`, or `assistant` messages, up to 100,000 total content characters, optional `temperature` between 0 and 2, and `model` set to `auto`, `gemini-2.5-flash`, `gemini-2.5-pro`, or `gemini-3.5-flash` (retained for explicit requests). Output is capped at 1,024 tokens; clients can request a lower `max_output_tokens`. It streams SSE `data:` events and ends with `data: [DONE]`. Errors after streaming starts arrive as `event: error`. Set `include_gateway_meta: true` to receive one final `event: gateway-meta` containing the actual provider/model, routing reason, failover flag, latency, token counts, cache status, PII redaction flag, and estimated cost.
+The endpoint accepts 1–50 `system`, `user`, or `assistant` messages, up to 100,000 total content characters, optional `temperature` between 0 and 2, and `model` set to `auto`, `gemini-2.5-flash`, `google/gemma-4-31b-it:free`, or `gemini-3.5-flash` (retained for explicit requests). Output is capped at 1,024 tokens; clients can request a lower `max_output_tokens`. It streams SSE `data:` events and ends with `data: [DONE]`. Errors after streaming starts arrive as `event: error`. Set `include_gateway_meta: true` to receive one final `event: gateway-meta` containing the actual provider/model, routing reason, failover flag, latency, token counts, cache status, PII redaction flag, and estimated cost.
 
 ## Deploy
 
@@ -70,11 +71,13 @@ The intended split is **Vercel for Next.js**, **Neon for PostgreSQL**, and **Ren
 1. Apply migrations against Neon from a trusted machine: set `DATABASE_URL` in local `.env`, then run `npm run db:migrate`. Use a Neon connection string suitable for migrations.
 2. In Render, create a Blueprint from this repository's `render.yaml`. Confirm that **both** resources show the **Free** plan: `auragate-redis` (Key Value) and `auragate-worker` (Web Service). Enter the Neon `DATABASE_URL` when prompted. The Blueprint connects the worker to Redis over Render's internal network.
 3. In the Render Key Value page, copy its **External URL**. It must start with `rediss://`, which enables TLS and password authentication. The Blueprint permits external IPs because Vercel's outbound addresses change; keep this URL secret. The Key Value policy is `noeviction` so the cache cannot evict BullMQ jobs.
-4. In Vercel, set `DATABASE_URL` to the Neon application URL, `REDIS_URL` to Render's **External URL**, and `WORKER_WAKE_URL` to `https://auragate-worker.onrender.com` (use the actual URL Render shows). Also set `GEMINI_API_KEY`, `GEMINI_PRO_API_KEY`, `GROQ_API_KEY`, `ADMIN_PASSWORD`, and `ADMIN_JWT_SECRET`. Add the Pro key as a server-side Secret for Production and redeploy; it is never sent to the browser or Render worker.
+4. In Vercel, set `DATABASE_URL` to the Neon application URL, `REDIS_URL` to Render's **External URL**, and `WORKER_WAKE_URL` to `https://auragate-worker.onrender.com` (use the actual URL Render shows). Also set `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `ADMIN_PASSWORD`, and `ADMIN_JWT_SECRET`. Keep the OpenRouter key server-side and redeploy; it is never sent to the browser or Render worker. Remove the obsolete `GEMINI_PRO_API_KEY` setting.
 5. Visit the worker's `/healthz` URL, then the Vercel app's `/api/health`. Create a tenant and key in the dashboard. Send the example proxy request twice; the second response should have `X-Cache: HIT`. Check that a usage row and budget change appear after the worker wakes.
 6. Run `npm run demo:setup-public` against the same Neon database. Add `SITE_DEMO_TENANT_ID` and `SITE_DEMO_API_KEY` from your local `.env` to Vercel's server environment. Set `ADMIN_PLAYGROUND_API_KEY` to the private key stored locally as `DEMO_API_KEY` for the private dashboard playground. Redeploy Vercel after setting these values. Never prefix raw keys with `NEXT_PUBLIC_` or `PUBLIC_`.
 
 The app and worker must use the **same** Neon database and Redis instance. On Vercel, use a Neon pooled application URL where available; keep pool sizes modest (`DB_POOL_SIZE`, default 3) because serverless instances each make their own pool.
+
+OpenRouter tries only the free model IDs in `src/lib/openrouter-models.ts`. Free endpoints have rate limits; if all of them fail before streaming, the gateway's final fallback is Gemini Flash. The completed request metadata and usage log show the model that actually responded.
 
 Render Free Web Services sleep after 15 minutes without incoming HTTP traffic. The first proxy request starts an HTTP wake request while the LLM runs; queued usage may take about a minute to appear after a cold start. Render Free Key Value stores data only in memory: a restart can lose queued jobs and cached data. Stale budget reservations are released by the cleanup job after the worker next runs, but lost usage jobs cannot be recovered. This free-tier deployment is suitable for demonstrations and development, but not reliable billing. Render's free allowances also have monthly usage limits; check usage in your Render dashboard to keep spending at $0.
 

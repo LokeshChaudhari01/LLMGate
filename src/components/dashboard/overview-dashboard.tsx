@@ -28,7 +28,7 @@ export function OverviewDashboard() {
         <dl className="mt-5 grid gap-3 sm:grid-cols-3">
           <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3"><dt className="text-xs text-zinc-500">Simple</dt><dd className="mt-1 font-medium text-zinc-100">Gemini Flash</dd><dd className="mt-1 font-mono text-xs text-zinc-500">gemini-2.5-flash</dd></div>
           <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3"><dt className="text-xs text-zinc-500">Code</dt><dd className="mt-1 font-medium text-zinc-100">Groq · GPT OSS 120B</dd><dd className="mt-1 font-mono text-xs text-zinc-500">openai/gpt-oss-120b</dd></div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3"><dt className="text-xs text-zinc-500">Complex</dt><dd className="mt-1 font-medium text-zinc-100">Gemini Pro</dd><dd className="mt-1 font-mono text-xs text-zinc-500">gemini-2.5-pro</dd></div>
+          <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3"><dt className="text-xs text-zinc-500">Complex</dt><dd className="mt-1 font-medium text-zinc-100">OpenRouter</dd><dd className="mt-1 font-mono text-xs text-zinc-500">Free model</dd></div>
         </dl>
       </section>
 

@@ -4,7 +4,7 @@
 // Purpose:
 //   Determines which LLM model to use using a multi-signal scoring function.
 //   Routes between Gemini Flash (simple), Groq GPT OSS 120B (coding), and
-//   Gemini 2.5 Pro (complex).
+//   free OpenRouter models (complex).
 //
 // Signals:
 //   - Code blocks (highest confidence)
@@ -17,6 +17,7 @@
 // =============================================================================
 
 import type { Message, RouteDecision } from "./providers/types";
+import { OPENROUTER_PRIMARY_MODEL } from "@/lib/openrouter-models";
 
 const SIGNAL_WEIGHTS = {
   CODE_BLOCK:          40,  // ```...``` present
@@ -57,11 +58,11 @@ export function selectProvider(
   
   if (requestedModel && requestedModel !== "auto") {
     return {
-      providerName: "gemini",
+      providerName: requestedModel === OPENROUTER_PRIMARY_MODEL ? "openrouter" : "gemini",
       model: requestedModel,
       estimatedTokens,
       routingReason: "user_specified",
-      queryType: "simple",
+      queryType: requestedModel === OPENROUTER_PRIMARY_MODEL ? "complex" : "simple",
       complexityScore: 0,
     };
   }
@@ -118,8 +119,8 @@ export function selectProvider(
 
   if (score >= 24) {
     return {
-      providerName: "gemini",
-        model: "gemini-2.5-pro",
+      providerName: "openrouter",
+      model: OPENROUTER_PRIMARY_MODEL,
       estimatedTokens,
       queryType: "complex",
       complexityScore: score,

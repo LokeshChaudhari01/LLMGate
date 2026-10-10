@@ -29,6 +29,7 @@ import type {
 } from "./providers/types";
 import { MAX_OUTPUT_TOKENS } from "./budget";
 import { calculateCost } from "@/lib/queue/cost-calculator";
+import { isOpenRouterFreeModel } from "@/lib/openrouter-models";
 
 export interface GatewayStreamOptions {
   maxOutputTokens?: number;
@@ -353,6 +354,19 @@ export function createProxyStream(
 
               // Skip [DONE] signal
               if (dataContent === "[DONE]") continue;
+
+              // OpenRouter may choose a free fallback model inside its own
+              // routing layer. Record the model that actually served the stream.
+              if (usedProvider === "openrouter") {
+                const chunk = JSON.parse(dataContent) as { model?: string; error?: { message?: string } };
+                if (chunk.error) throw new Error(chunk.error.message || "OpenRouter stream failed");
+                if (chunk.model) {
+                  if (!isOpenRouterFreeModel(chunk.model)) {
+                    throw new Error(`Unexpected OpenRouter model: ${chunk.model}`);
+                  }
+                  usedModel = chunk.model;
+                }
+              }
 
               // Extract text content — handles both Gemini and OpenAI (Groq) formats
               const text = extractText(dataContent);

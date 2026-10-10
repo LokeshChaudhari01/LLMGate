@@ -104,13 +104,6 @@ export const geminiProvider: LLMProvider = {
     }
 
     body.generationConfig = { maxOutputTokens: request.maxOutputTokens };
-    if (request.model === "gemini-2.5-pro") {
-      // Pro counts reasoning tokens toward maxOutputTokens. Keep room for a
-      // visible answer, including in the capped public playground.
-      body.generationConfig.thinkingConfig = {
-        thinkingBudget: Math.max(128, Math.min(512, Math.floor(request.maxOutputTokens / 2))),
-      };
-    }
     if (request.temperature !== undefined) body.generationConfig.temperature = request.temperature;
 
     const endpoint = buildEndpoint(request.model, request.apiKey);

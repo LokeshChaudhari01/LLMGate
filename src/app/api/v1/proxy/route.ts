@@ -33,6 +33,7 @@ import { sanitizeMessages } from "@/lib/proxy/pii-scrubber";
 import { selectProvider } from "@/lib/proxy/cost-router";
 import { createProxyStream } from "@/lib/proxy/stream-handler";
 import { logUsageAsync } from "@/lib/proxy/usage-logger";
+import { OPENROUTER_PRIMARY_MODEL } from "@/lib/openrouter-models";
 import { wakeWorker } from "@/lib/queue/wake-worker";
 import { estimateReservation, MAX_INPUT_CHARACTERS, MAX_OUTPUT_TOKENS, reserveBudget } from "@/lib/proxy/budget";
 import { getProvider } from "@/lib/proxy/providers/registry";
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (typeof body.model !== "string") {
       return badRequest(requestId, "model must be a string", rateLimitHeaders);
     }
-    const validModels = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-2.5-pro"];
+    const validModels = ["gemini-2.5-flash", "gemini-3.5-flash", OPENROUTER_PRIMARY_MODEL];
     if (!validModels.includes(body.model)) {
       return badRequest(
         requestId,
@@ -286,15 +287,15 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Resolve API key based on the selected provider
   const apiKey = routeDecision.providerName === "groq"
     ? process.env.GROQ_API_KEY
-    : routeDecision.model === "gemini-2.5-pro"
-      ? process.env.GEMINI_PRO_API_KEY
+    : routeDecision.providerName === "openrouter"
+      ? process.env.OPENROUTER_API_KEY
       : process.env.GEMINI_API_KEY;
 
   if (!apiKey || apiKey.startsWith("your_")) {
     return errorResponse(
       503,
-      routeDecision.model === "gemini-2.5-pro"
-        ? "Gemini Pro is unavailable until GEMINI_PRO_API_KEY is configured."
+      routeDecision.providerName === "openrouter"
+        ? "OpenRouter is unavailable until OPENROUTER_API_KEY is configured."
         : `API key for provider "${routeDecision.providerName}" is not configured.`,
       "provider_configuration_error",
       requestId,

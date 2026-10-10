@@ -15,6 +15,7 @@
 import type { LLMProvider } from "./types";
 import { geminiProvider } from "./gemini";
 import { groqProvider } from "./groq";
+import { openrouterProvider } from "./openrouter";
 // import { openaiProvider } from './openai';  // Uncomment when implemented
 
 // ---------------------------------------------------------------------------
@@ -24,6 +25,7 @@ import { groqProvider } from "./groq";
 const providers: Record<string, LLMProvider> = {
   gemini: geminiProvider,
   groq: groqProvider,
+  openrouter: openrouterProvider,
   // openai: openaiProvider,
 };
 

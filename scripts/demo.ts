@@ -1,6 +1,7 @@
 import "dotenv/config";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { isOpenRouterFreeModel } from "../src/lib/openrouter-models";
 
 const baseUrl = (process.env.DEMO_BASE_URL || "https://llmgate-ai-gateway.vercel.app").replace(/\/$/, "");
 const apiKey = process.env.DEMO_API_KEY;
@@ -23,7 +24,11 @@ async function sendPrompt(prompt: string): Promise<DemoResult> {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({
+      messages: [{ role: "user", content: prompt }],
+      include_gateway_meta: true,
+      max_output_tokens: 512,
+    }),
     signal: AbortSignal.timeout(65_000),
   });
   const stream = await response.text();
@@ -43,9 +48,17 @@ async function sendPrompt(prompt: string): Promise<DemoResult> {
     })
     .join("");
 
+  const lines = stream.split("\n");
+  const metadataIndex = lines.findIndex((line, index) =>
+    line === "event: gateway-meta" && lines[index + 1]?.startsWith("data: ")
+  );
+  const metadata = metadataIndex >= 0
+    ? JSON.parse(lines[metadataIndex + 1].slice(6)) as { provider?: string; model?: string }
+    : null;
+
   return {
-    provider: response.headers.get("x-auragate-provider"),
-    model: response.headers.get("x-auragate-model"),
+    provider: metadata?.provider ?? response.headers.get("x-auragate-provider"),
+    model: metadata?.model ?? response.headers.get("x-auragate-model"),
     cache: response.headers.get("x-cache"),
     answer: answer.trim(),
   };
@@ -54,16 +67,26 @@ async function sendPrompt(prompt: string): Promise<DemoResult> {
 async function main() {
   const nonce = randomUUID();
   const simple = `Say hello in five words. Demo request ${nonce}.`;
+  const complex = `Analyze architecture, scalability, performance, and tradeoffs for a small chat service in two sentences. Demo request ${nonce}.`;
   const prompts = [
     { label: "Simple", prompt: simple, model: "gemini-2.5-flash", cache: "MISS" },
     { label: "Cached", prompt: simple, model: "gemini-2.5-flash", cache: "HIT" },
+    { label: "Simple 2", prompt: `Name one benefit of caching in one sentence. Demo request ${nonce}.`, model: "gemini-2.5-flash", cache: "MISS" },
     { label: "Coding", prompt: `What does this return? \`\`\`js\nconst add = (a, b) => a + b;\nadd(2, 3);\n\`\`\` Demo request ${nonce}.`, model: "openai/gpt-oss-120b", cache: "MISS" },
-    { label: "Complex", prompt: `Analyze architecture, scalability, performance, and tradeoffs for a small chat service in two sentences. Demo request ${nonce}.`, model: "gemini-3.5-flash", cache: "MISS" },
+    { label: "Coding 2", prompt: `Find the output of this code: \`\`\`python\nprint(sum([2, 3, 5]))\n\`\`\` Demo request ${nonce}.`, model: "openai/gpt-oss-120b", cache: "MISS" },
+    { label: "Complex", prompt: complex, model: "openrouter", cache: "MISS" },
+    { label: "Complex cached", prompt: complex, model: "openrouter", cache: "HIT" },
+    { label: "Complex 2", prompt: `Compare the pros and cons of synchronous and asynchronous processing for a high volume service. Explain performance and scalability effects in two sentences. Demo request ${nonce}.`, model: "openrouter", cache: "MISS" },
   ];
 
   for (const item of prompts) {
     const result = await sendPrompt(item.prompt);
-    assert.equal(result.model, item.model, `${item.label} used an unexpected model`);
+    if (item.model === "openrouter") {
+      assert.equal(result.provider, "openrouter", `${item.label} used an unexpected provider`);
+      assert.ok(result.model && isOpenRouterFreeModel(result.model), `${item.label} used an unexpected model`);
+    } else {
+      assert.equal(result.model, item.model, `${item.label} used an unexpected model`);
+    }
     assert.equal(result.cache, item.cache, `${item.label} had an unexpected cache result`);
     console.log(`${item.label}: ${result.provider} / ${result.model} / cache ${result.cache}`);
     console.log(`  ${result.answer.slice(0, 180) || "(No text returned)"}`);
