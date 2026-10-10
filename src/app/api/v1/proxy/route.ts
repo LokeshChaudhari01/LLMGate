@@ -360,22 +360,18 @@ export async function POST(request: NextRequest): Promise<Response> {
     fallbackConfig,
     routeDecision.routingReason,
     async (result: StreamResult) => {
-      // ----- onComplete callback (non-blocking) -----
+      // Complete cache persistence before closing the stream. A serverless
+      // runtime may stop pending work as soon as the response finishes.
 
       // Cache the response with provider/model metadata (AD-7)
       if (result.completion && result.isComplete === true) {
-        setCachedResponse(cacheKey, {
+        await setCachedResponse(cacheKey, {
           completion: result.completion,
           model: result.model,
           provider: result.provider,
           promptTokens: result.promptTokens,
           completionTokens: result.completionTokens,
           cachedAt: Date.now(),
-        }).catch((err: Error) => {
-          console.error(
-            `🔴 [Cache] Failed to cache response for ${requestId.substring(0, 8)}...:`,
-            err.message
-          );
         });
       }
 

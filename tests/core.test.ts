@@ -13,11 +13,24 @@ test("automatic model selection handles simple, coding, and complex prompts", ()
   assert.equal(selectProvider(message("Hello"), "auto").model, "gemini-2.5-flash");
   assert.equal(selectProvider(message("Debug this TypeScript function with an async import error")).model, "openai/gpt-oss-120b");
   assert.equal(selectProvider(message("Debug this TypeScript function with an async import error"), undefined, false).model, "gemini-2.5-flash");
+  for (const prompt of [
+    "Write code to reverse a string",
+    "Write a function to sort numbers",
+    "Write a program to reverse a string",
+    "Explain recursion with an example",
+    "Why is my Python loop failing?",
+    "How does an API endpoint work?",
+    "Explain `Array.map()`",
+  ]) {
+    assert.equal(selectProvider(message(prompt)).providerName, "groq", prompt);
+  }
+  assert.equal(selectProvider(message("Why is this classic novel famous?")).providerName, "gemini");
   const complex = selectProvider(message("Analyze the architecture and scalability tradeoffs in detail"));
   assert.equal(complex.model, "google/gemma-4-31b-it:free");
   assert.equal(complex.providerName, "openrouter");
   assert.equal(selectProvider(message("Hello"), "google/gemma-4-31b-it:free").providerName, "openrouter");
   assert.equal(modelLabel(complex.model), "OpenRouter");
+  assert.equal(selectProvider(message("Compare API architectures and scalability tradeoffs in detail")).providerName, "openrouter");
 });
 
 test("redacts client-supplied secrets across message roles", () => {

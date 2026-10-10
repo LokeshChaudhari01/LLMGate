@@ -28,13 +28,11 @@ const SIGNAL_WEIGHTS = {
   QUESTION_DEPTH:       5,  // multiple "?" or "explain why/how"
 };
 
-const CODE_KEYWORDS = [
-  "function", "class", "import", "export", "const", "let", "var",
-  "async", "await", "return", "interface", "type ", "enum",
-  "sql", "query", "bug", "error", "exception", "debug", "fix",
-  "typescript", "javascript", "python", "rust", "golang", "react",
-  "api", "endpoint", "http", "rest", "graphql", "dockerfile",
-];
+// A single clear coding term should be enough for short playground questions.
+// Word boundaries avoid substring matches such as "class" in "classic".
+const CODE_TERMS = /\b(?:code|coding|program|programming|script|function|variable|loop|array|recursion|linked list|data structure|algorithm|bug|debug|exception|stack trace|syntax|compiler|typescript|javascript|python|rust|golang|java|react|next\.?js|node\.?js|sql|graphql|dockerfile|html|css|regex|snippet)\b/;
+const TECHNICAL_TERMS = /\b(?:api|endpoint|http|rest|query|database|docker|async|await|interface|json|npm|git)\b/;
+const CODE_BLOCK = /```[\s\S]*?```|`[^`\n]+`/;
 
 const COMPLEXITY_KEYWORDS = [
   "architecture", "design", "tradeoff", "compare", "analyze",
@@ -70,14 +68,13 @@ export function selectProvider(
   let score = 0;
 
   // Signal 1: Code blocks
-  const hasCodeBlock = /```[\s\S]*?```/.test(fullText);
+  const hasCodeBlock = CODE_BLOCK.test(fullText);
   if (hasCodeBlock) score += SIGNAL_WEIGHTS.CODE_BLOCK;
 
   // Signal 2: Code keywords
-  const codeKeywordMatches = CODE_KEYWORDS.filter((kw) =>
-    fullText.includes(kw)
-  ).length;
-  score += Math.min(codeKeywordMatches * SIGNAL_WEIGHTS.CODE_KEYWORDS, 25);
+  const hasCodeTerm = CODE_TERMS.test(fullText);
+  const hasTechnicalTerm = TECHNICAL_TERMS.test(fullText);
+  score += (Number(hasCodeTerm) + Number(hasTechnicalTerm)) * SIGNAL_WEIGHTS.CODE_KEYWORDS;
 
   // Signal 3: Token count bands
   if (estimatedTokens > 600) score += SIGNAL_WEIGHTS.TOKENS_OVER_600;
@@ -94,7 +91,9 @@ export function selectProvider(
   if (questionMarks >= 3) score += SIGNAL_WEIGHTS.QUESTION_DEPTH;
 
   // --- Routing Decision ---
-  const isCoding = hasCodeBlock || codeKeywordMatches >= 3;
+  // Technical architecture questions with several complexity signals still
+  // belong on OpenRouter; direct coding questions go to Groq even when short.
+  const isCoding = hasCodeBlock || hasCodeTerm || (hasTechnicalTerm && score < 24);
 
   if (isCoding) {
     if (!groqAvailable) {
