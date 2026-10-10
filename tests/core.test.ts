@@ -96,4 +96,5 @@ test("OpenRouter sends only free models and streams usage", async () => {
   assert.deepEqual(requestedBody.models, OPENROUTER_FREE_MODELS.slice(1));
   assert.equal(requestedBody.stream, true);
   assert.deepEqual(requestedBody.stream_options, { include_usage: true });
+  assert.deepEqual(requestedBody.reasoning, { enabled: false });
 });
