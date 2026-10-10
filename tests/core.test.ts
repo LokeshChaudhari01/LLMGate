@@ -94,6 +94,7 @@ test("OpenRouter sends only free models and streams usage", async () => {
   assert.equal(requestedUrl, "https://openrouter.ai/api/v1/chat/completions");
   assert.equal(requestedBody.model, OPENROUTER_FREE_MODELS[0]);
   assert.deepEqual(requestedBody.models, OPENROUTER_FREE_MODELS.slice(1));
+  assert.ok(OPENROUTER_FREE_MODELS.length <= 4);
   assert.equal(requestedBody.stream, true);
   assert.deepEqual(requestedBody.stream_options, { include_usage: true });
 });
