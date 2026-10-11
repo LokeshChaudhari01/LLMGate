@@ -2,7 +2,7 @@
 
 **Live web app:** [llmgate-ai-gateway.vercel.app](https://llmgate-ai-gateway.vercel.app/)
 
-LLMGate is a deployed, multi-tenant AI gateway that exposes one chat API across Gemini Flash, Groq, and OpenRouter. It authenticates tenant API keys, enforces rate limits and budgets, scrubs common PII, and uses deterministic prompt scoring to route simple, coding, and complex questions. Responses stream over SSE with provider failover and tenant-scoped Redis caching for exact repeats. A BullMQ worker reconciles usage and budgets in partitioned PostgreSQL, powering an admin dashboard; a capped public playground and read-only sample dashboard let visitors explore the system.
+LLMGate is a deployed, multi-tenant AI gateway that routes chat requests across multiple LLM providers using a deterministic complexity scoring engine. It enforces API key authentication, rate limits, tenant level budget controls, and PII scrubbing before inference. The gateway streams responses via Server Sent Events (SSE), supports pre-stream provider failover, and uses tenant scoped Redis caching for exact match prompts. A BullMQ worker reconciles usage and spending data and persists telemetry to partitioned PostgreSQL, powering a private analytics dashboard. A rate limited public playground and read only demo dashboard let visitors explore the system without administrative access.
 
 ## What it does
 
