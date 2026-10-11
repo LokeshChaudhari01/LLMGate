@@ -1,8 +1,8 @@
 # LLMGate
 
-LLMGate is a multi-tenant AI API gateway with a public playground, a read-only sample dashboard, and a private operations dashboard. A client sends one OpenAI-style chat request to `POST /api/v1/proxy`; the gateway authenticates the client's API key, enforces a request limit and tenant budget, redacts common sensitive strings, selects a model, streams the answer, and records usage for the dashboard. Internal Redis keys, database names, and response headers retain the original AuraGate service identifier.
+**Live web app:** [llmgate-ai-gateway.vercel.app](https://llmgate-ai-gateway.vercel.app/)
 
-It is a compact reference implementation of gateway tradeoffs.
+LLMGate is a deployed, multi-tenant AI gateway that exposes one chat API across Gemini Flash, Groq, and OpenRouter. It authenticates tenant API keys, enforces rate limits and budgets, scrubs common PII, and uses deterministic prompt scoring to route simple, coding, and complex questions. Responses stream over SSE with provider failover and tenant-scoped Redis caching for exact repeats. A BullMQ worker reconciles usage and budgets in partitioned PostgreSQL, powering an admin dashboard; a capped public playground and read-only sample dashboard let visitors explore the system.
 
 ## What it does
 
@@ -15,20 +15,71 @@ It is a compact reference implementation of gateway tradeoffs.
 - **Public demo:** visitors can inspect saved routing examples and a clearly labelled sample dashboard without an account. A separate public tenant allows one short live question per browser daily, with a PostgreSQL-enforced site-wide cap of 20 and a per-IP backstop of three. The public API key stays on the server.
 - **Observability:** each request has an ID. A worker writes usage to a partitioned PostgreSQL table. `GET /api/health` checks PostgreSQL, Redis, and the worker heartbeat.
 
+## Architecture
+
 ```mermaid
 flowchart LR
-  Client --> Next["Next.js API on Vercel"]
-  Admin --> Next
-  Next --> Neon["Neon PostgreSQL"]
-  Next --> Redis["Redis"]
-  Next --> Gemini["Gemini"]
-  Next --> Groq["Groq"]
-  Next --> OpenRouter["OpenRouter"]
-  Redis --> Worker["BullMQ worker"]
-  Worker --> Neon
+  Client["API client"] --> Gateway
+  Visitor["Public visitor"] --> DemoAPI
+  Admin["Admin dashboard"] --> AdminQuery
+  Admin --> Analytics
+
+  subgraph Vercel["Vercel · Next.js Node.js functions"]
+    DemoAPI["Public demo API"] --> Gateway
+    AdminQuery["Admin playground API"] --> Gateway
+    Analytics["Admin analytics APIs"]
+    Gateway["POST /api/v1/proxy"] --> Auth["API key + tenant authentication"]
+    Auth --> Limit["Per-key rate limit"]
+    Limit --> Scrub["PII scrubbing"]
+    Scrub --> Router["Deterministic complexity router"]
+    Router --> Cache{"Exact-prompt cache?"}
+    Cache -- hit --> SSE["SSE answer + request metadata"]
+    Cache -- miss --> Reserve["Atomic budget reservation"]
+    Reserve --> Stream["Provider adapter + stream handler"]
+    Stream --> SSE
+    Stream --> CacheWrite["Cache completed answer"]
+    Stream --> Enqueue["Queue usage before DONE"]
+    Cache -- hit --> Enqueue
+  end
+
+  subgraph Redis["Render Free Key Value · Redis"]
+    KeyCache["API key cache"]
+    RateKeys["Sliding-window counters"]
+    PromptCache["Tenant + model + prompt cache"]
+    Jobs["BullMQ usage jobs"]
+  end
+
+  subgraph Neon["Neon PostgreSQL"]
+    Tenants["Tenants + hashed API keys"]
+    Quota["Public demo quota"]
+    Reservations["Budget reservations"]
+    Usage["Monthly-partitioned usage logs"]
+  end
+
+  subgraph Render["Render Free Web Service"]
+    Worker["BullMQ worker · cost + budget settlement"]
+  end
+
+  Auth <--> KeyCache
+  Auth --> Tenants
+  Limit --> RateKeys
+  Cache <--> PromptCache
+  CacheWrite --> PromptCache
+  Reserve --> Reservations
+  DemoAPI --> Quota
+  Enqueue --> Jobs --> Worker
+  Worker --> Reservations
+  Worker --> Usage
+  Gateway -.->|wake /healthz| Worker
+  Analytics --> Tenants
+  Analytics --> Usage
+
+  Stream -->|simple or fallback| Gemini["Gemini Flash"]
+  Stream -->|coding| Groq["Groq GPT OSS 120B"]
+  Stream -->|complex| OpenRouter["OpenRouter free models"]
 ```
 
-The proxy and worker use the Node.js runtime. The response is Server-Sent Events (SSE), including on cache hits. Usage is queued before the final `[DONE]` event, so accounting does not depend on a background task surviving after a Vercel function finishes.
+The proxy and worker use the Node.js runtime. The response is Server-Sent Events (SSE), including on cache hits. Usage is queued before the final `[DONE]` event, so accounting does not depend on a background task surviving after a Vercel function finishes. Provider failover occurs when the selected upstream request fails before its stream is accepted; an interrupted stream returns an error instead of replaying partial output.
 
 ## Live demo
 
@@ -83,6 +134,7 @@ Render Free Web Services sleep after 15 minutes without incoming HTTP traffic. T
 
 ## Design choices and limits
 
+- Internal Redis keys, database names, and response headers retain the original AuraGate service identifier.
 - Pricing is a checked-in snapshot for the three supported models. Update `src/lib/queue/cost-calculator.ts` when provider prices change. The budget reservation uses an upper bound; provider reports determine the final charge.
 - Redis rate limiting fails open if Redis is unavailable, but authentication and the PostgreSQL budget gate still apply. The health endpoint reports Redis or worker outages.
 - The public playground's PostgreSQL quota fails closed if the database is unavailable. Its one-per-browser cookie and per-IP cap are abuse friction; the durable site-wide cap and dedicated tenant budget are the hard backstops. It does not promise that every visitor can make a live request after the shared allowance is exhausted.
