@@ -8,11 +8,11 @@ export const metadata: Metadata = {
 };
 
 const features = [
-  { label: "MODEL ROUTING", title: "Choose the right model", description: "Automatically route simple, coding, and complex prompts across three providers using a deterministic score." },
-  { label: "SPENDING GUARDRAILS", title: "Set limits before inference", description: "Reserve tenant budget before provider calls and rate limit each API key." },
-  { label: "EXACT-MATCH CACHE", title: "Skip repeat model calls", description: "Return eligible exact-match answers from a tenant-scoped Redis cache without another provider call." },
-  { label: "PROVIDER FAILOVER", title: "Recover before streaming", description: "If a provider fails before streaming starts, try one fallback model." },
-  { label: "REQUEST ANALYTICS", title: "See where usage goes", description: "Inspect model choices, token counts, latency, and estimated cost in the dashboard." },
+  { title: "Intelligent Model Routing", description: "Automatically selects a suitable AI model based on request complexity." },
+  { title: "Cost & Budget Control", description: "Enforces tenant spending limits and per-key rate limits." },
+  { title: "Smart Response Caching", description: "Reuses answers to identical prompts within a tenant to avoid unnecessary model calls." },
+  { title: "Automatic Provider Failover", description: "Retries with a fallback provider when the selected provider fails before streaming begins." },
+  { title: "Usage Analytics", description: "Tracks token usage, request latency, model selection, and estimated costs." },
 ];
 
 export default function Home() {
@@ -37,8 +37,8 @@ export default function Home() {
             <p className={styles.eyebrow}><span aria-hidden="true" className={styles.eyebrowRule} />AI GATEWAY · MODEL ROUTING</p>
             <h1 id="hero-title" className={styles.headline}>
               <span>One gateway.</span>
-              <span>Every AI request.</span>
-              <span className={styles.headlineAccent}>Smarter by design.</span>
+              <span>Smarter AI routing.</span>
+              <span className={styles.headlineAccent}>Lower costs.</span>
             </h1>
             <p className={styles.heroDescription}>Intelligently route AI requests while keeping costs and usage under control.</p>
             <div className={styles.actions}>
@@ -57,13 +57,24 @@ export default function Home() {
               <h2 id="features-title">Built into the gateway</h2>
             </div>
             <ul className={styles.featureList}>
-              {features.map((feature) => (
-                <li key={feature.title} className={styles.featureCard}>
-                  <span className={styles.featureLabel}>{feature.label}</span>
-                  <div className={styles.featureContent}>
-                    <h3>{feature.title}</h3>
-                    <p>{feature.description}</p>
+              {features.map((feature, index) => (
+                <li key={feature.title} className={`${styles.featureCard} ${index === 0 ? styles.featureCardLead : ""}`}>
+                  <div className={styles.featureText}>
+                    <div className={styles.featureContent}>
+                      <h3>{feature.title}</h3>
+                      <p>{feature.description}</p>
+                    </div>
                   </div>
+                  {index === 0 && (
+                    <div className={styles.routingVisual} aria-hidden="true">
+                      {["Simple", "Coding", "Complex"].map((kind) => (
+                        <div key={kind} className={styles.routingLane}>
+                          <span>{kind}</span>
+                          <span className={styles.routingTrack} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

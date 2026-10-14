@@ -55,7 +55,7 @@ Geist is the interface face and Geist Mono is reserved for API keys, IDs, prices
 
 The sidebar is the stable navigation owner on wide screens. Main content uses a maximum width and a two-rem page gutter. Cards use a 1.5-rem gap. Forms stack at narrow widths. Wide tables may scroll horizontally, with visible overflow and readable cell values.
 
-On `/`, the hero uses a two-column composition: an editorial statement and two public actions on the left, five product capabilities in a compact card stack on the right. At narrower widths the columns stack. The feature cards enter one after another with a staggered downward motion, disabled when reduced motion is requested. No card starts highlighted; the blue edge and surface appear on hover. The landing header keeps only the brand and admin sign-in; the public demo and sample dashboard are linked once in the hero.
+On `/`, the hero uses a two-column composition: an editorial statement and two public actions on the left, five product capabilities on the right. Routing is a full-width lead card with a decorative three-class diagram; the other four capabilities form a compact two-column set, collapsing to one column on narrow screens. The cards enter one after another with a staggered downward motion, disabled when reduced motion is requested. No card starts highlighted; a blue border and surface appear on hover. The landing header keeps only the brand and admin sign-in; the public demo and sample dashboard are linked once in the hero.
 
 ## Elevation & Depth
 
@@ -71,7 +71,7 @@ Actions name their effect: Create tenant, Generate key, Deactivate, Reactivate, 
 
 The tenant picker uses a native Select/Listbox. Its operating-system popup is acceptable here because option labels are short and no custom popup geometry is part of the interface.
 
-The landing feature stack states product capabilities without sample metrics or a request trace. The public playground uses request traces and saved scenarios. Live request telemetry must reflect the completed request rather than the initially selected route when failover occurs.
+The landing feature stack states product capabilities without sample metrics or a request trace. Its routing diagram labels request classes and implies no live selection or measured values. The public playground uses request traces and saved scenarios. Live request telemetry must reflect the completed request rather than the initially selected route when failover occurs.
 
 Model routing labels use human-readable names alongside the exact model ID. The overview states the configured simple, code, and complex routes; request rows and traces show the model that actually answered, including fallback.
 
