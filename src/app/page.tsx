@@ -1,63 +1,77 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { PublicHeader } from "@/components/public-header";
+import styles from "./page.module.css";
 
-const steps = [
-  { number: "01", name: "Access", detail: "The gateway checks the key and tenant budget." },
-  { number: "02", name: "Route", detail: "The question is classified and sent to a suitable model." },
-  { number: "03", name: "Respond", detail: "The answer streams back while usage is recorded." },
+export const metadata: Metadata = {
+  title: "LLMGate | Intelligent AI request routing",
+  description: "Route AI requests across models while controlling budgets, caching repeat prompts, and tracking usage.",
+};
+
+const features = [
+  { label: "MODEL ROUTING", title: "Choose the right model", description: "Automatically route simple, coding, and complex prompts across three providers using a deterministic score." },
+  { label: "SPENDING GUARDRAILS", title: "Set limits before inference", description: "Reserve tenant budget before provider calls and rate limit each API key." },
+  { label: "EXACT-MATCH CACHE", title: "Skip repeat model calls", description: "Return eligible exact-match answers from a tenant-scoped Redis cache without another provider call." },
+  { label: "PROVIDER FAILOVER", title: "Recover before streaming", description: "If a provider fails before streaming starts, try one fallback model." },
+  { label: "REQUEST ANALYTICS", title: "See where usage goes", description: "Inspect model choices, token counts, latency, and estimated cost in the dashboard." },
 ];
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <PublicHeader />
-      <main>
-        <section className="mx-auto grid max-w-7xl gap-12 px-5 pb-20 pt-16 sm:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:pt-24">
-          <div>
-            <p className="mb-6 font-mono text-xs uppercase tracking-[0.22em] text-blue-400">One entry point · multiple models</p>
-            <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight text-white sm:text-6xl">
-              Every AI request has a route.
-              <span className="block text-zinc-400">See the route it took.</span>
+    <div className={styles.page}>
+      <a className={styles.skipLink} href="#main-content">Skip to content</a>
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <Link href="/" className={styles.brand} aria-label="LLMGate home">LLM<span>Gate</span></Link>
+          <Link href="/admin-login" className={styles.adminLink}>
+            Admin sign in
+            <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={styles.adminArrow}>
+              <path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </Link>
+        </div>
+      </header>
+
+      <main id="main-content">
+        <section className={styles.hero} aria-labelledby="hero-title">
+          <div className={styles.heroCopy}>
+            <p className={styles.eyebrow}><span aria-hidden="true" className={styles.eyebrowRule} />AI GATEWAY · MODEL ROUTING</p>
+            <h1 id="hero-title" className={styles.headline}>
+              <span>One gateway.</span>
+              <span>Every AI request.</span>
+              <span className={styles.headlineAccent}>Smarter by design.</span>
             </h1>
-            <p className="mt-7 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">
-              LLMGate sits between an application and its AI providers. It checks access, controls usage, chooses a model, streams the answer, and records what happened.
-            </p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Link href="/try" className="rounded-lg bg-blue-600 px-5 py-3 font-medium text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300">Try a question</Link>
-              <Link href="/sample-dashboard" className="rounded-lg border border-zinc-700 px-5 py-3 font-medium text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Explore sample telemetry</Link>
+            <p className={styles.heroDescription}>Intelligently route AI requests while keeping costs and usage under control.</p>
+            <div className={styles.actions}>
+              <Link href="/try" className={styles.primaryAction}>
+                Try the gateway
+                <svg aria-hidden="true" viewBox="0 0 20 20" fill="none"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </Link>
+              <Link href="/sample-dashboard" className={styles.secondaryAction}>Explore sample dashboard</Link>
             </div>
-            <p className="mt-5 text-sm text-zinc-500">No account needed for the public demo. Live questions have a daily allowance.</p>
+            <p className={styles.demoNote}>No account needed. The public demo allows one live question per browser each day.</p>
           </div>
-          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/70">
-            <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4 font-mono text-xs text-zinc-500">
-              <span>REQUEST TRACE</span><span>ILLUSTRATIVE</span>
+
+          <section className={styles.featureStack} aria-labelledby="features-title">
+            <div className={styles.featureStackHeader}>
+              <span aria-hidden="true" className={styles.stackRule} />
+              <h2 id="features-title">Built into the gateway</h2>
             </div>
-            <div className="px-6 py-6">
-              <div className="mb-7 rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 font-mono text-sm text-zinc-200">“Why does Promise.all stop on a rejection?”</div>
-              <ol className="space-y-0">
-                {steps.map((step, index) => (
-                  <li key={step.number} className="relative flex gap-4 pb-8 last:pb-0">
-                    {index < steps.length - 1 && <span aria-hidden="true" className="absolute left-[15px] top-8 h-[calc(100%-2rem)] w-px bg-zinc-700" />}
-                    <span className="relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border border-blue-500/60 bg-blue-950 font-mono text-[10px] text-blue-300">{step.number}</span>
-                    <div><p className="font-medium text-zinc-100">{step.name}</p><p className="mt-1 text-sm leading-6 text-zinc-400">{step.detail}</p></div>
-                  </li>
-                ))}
-              </ol>
-              <div className="mt-7 grid grid-cols-2 gap-3 border-t border-zinc-800 pt-6 text-sm">
-                <div><span className="block text-xs text-zinc-500">Selected model</span><span className="mt-1 block font-mono text-blue-300">gpt-oss-120b</span></div>
-                <div><span className="block text-xs text-zinc-500">Why</span><span className="mt-1 block text-zinc-200">Coding question</span></div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <section className="border-t border-zinc-800 bg-zinc-900/40">
-          <div className="mx-auto grid max-w-7xl gap-8 px-5 py-14 sm:px-8 md:grid-cols-3">
-            <div><h2 className="font-semibold text-white">Budget-aware</h2><p className="mt-2 text-sm leading-6 text-zinc-400">Tenant budgets are reserved before a provider call, then settled against recorded usage.</p></div>
-            <div><h2 className="font-semibold text-white">Cache-aware</h2><p className="mt-2 text-sm leading-6 text-zinc-400">Repeated questions can return from Redis without another model call.</p></div>
-            <div><h2 className="font-semibold text-white">Inspectable</h2><p className="mt-2 text-sm leading-6 text-zinc-400">Routing, latency, token usage, and estimated cost appear in the private operations dashboard.</p></div>
-          </div>
+            <ul className={styles.featureList}>
+              {features.map((feature) => (
+                <li key={feature.title} className={styles.featureCard}>
+                  <span className={styles.featureLabel}>{feature.label}</span>
+                  <div className={styles.featureContent}>
+                    <h3>{feature.title}</h3>
+                    <p>{feature.description}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         </section>
       </main>
+
+      <footer className={styles.footer}><span>LLMGate</span><span>AI infrastructure, with the decisions visible.</span></footer>
     </div>
   );
 }

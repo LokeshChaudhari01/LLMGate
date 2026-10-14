@@ -35,15 +35,17 @@ components:
 
 ## Overview
 
-LLMGate is an operations console for the person administering an AI gateway. Its job is to make traffic, routing, spend, and access visible at a glance. The public entry and playground use the same dark zinc identity to let a visitor inspect one request without reaching private data. The routing trace is the signature across public and private surfaces, with a restrained color map for provider and query categories. Forms and account controls remain familiar and quiet.
+LLMGate is an operations console for the person administering an AI gateway. Its job is to make traffic, routing, spend, and access visible at a glance. The landing page introduces its capabilities through a concise feature stack beside the hero statement. The public playground and private dashboard keep their own request traces and operational controls. Forms and account controls remain familiar and quiet.
 
 The interface is English and desktop-first, but its forms and navigation must remain usable on a narrow screen. The public home can explain the product; operational views stay direct and data-led. Avoid decorative gradients outside the brand mark, chart colors without meaning, and promotional copy in operational views.
 
-The frontmatter mirrors the Tailwind zinc and blue utilities used by the application. `src/app/globals.css` owns global font and scrollbar rules; Tailwind utility classes own component colors and spacing. A durable token change must update both this file and those runtime owners.
+The frontmatter mirrors the current Tailwind zinc and blue utilities used outside the landing page. `src/app/globals.css` owns global font and scrollbar rules. The landing page's exact black-and-blue palette is scoped to `src/app/page.module.css` while the remaining routes await their own redesign. A durable token change must update this file and its runtime owner together.
 
 ## Colors
 
 Zinc 950 is the application background, zinc 900 the card surface, and zinc 800 the separator. Blue is the primary action and focus cue. Emerald marks successful states, amber warns, and red signals deactivation or failure. Never use color alone to communicate state; pair it with a label.
+
+The landing page uses `#09090B` for the page, `#111114` for surfaces, `#27272F` for dividers, `#F5F5F7` for primary text, `#A1A1AA` for supporting text, `#2463EB` for the primary action, `#3B82F6` for focus and small accents, and `#101827` for feature-card hover. These values live as scoped variables in `src/app/page.module.css`. The landing page has no green, lime, purple, or multicolor accent treatment; this does not yet alter the separate dashboard's semantic status colors.
 
 ## Typography
 
@@ -52,6 +54,8 @@ Geist is the interface face and Geist Mono is reserved for API keys, IDs, prices
 ## Layout
 
 The sidebar is the stable navigation owner on wide screens. Main content uses a maximum width and a two-rem page gutter. Cards use a 1.5-rem gap. Forms stack at narrow widths. Wide tables may scroll horizontally, with visible overflow and readable cell values.
+
+On `/`, the hero uses a two-column composition: an editorial statement and two public actions on the left, five product capabilities in a compact card stack on the right. At narrower widths the columns stack. The feature cards enter one after another with a staggered downward motion, disabled when reduced motion is requested. No card starts highlighted; the blue edge and surface appear on hover. The landing header keeps only the brand and admin sign-in; the public demo and sample dashboard are linked once in the hero.
 
 ## Elevation & Depth
 
@@ -67,7 +71,7 @@ Actions name their effect: Create tenant, Generate key, Deactivate, Reactivate, 
 
 The tenant picker uses a native Select/Listbox. Its operating-system popup is acceptable here because option labels are short and no custom popup geometry is part of the interface.
 
-The public trace uses the same zinc surfaces, blue focus/action color, and monospace data labels as the admin dashboard. Its numbered steps describe the actual access → route → response sequence. Saved scenarios and public sample metrics must display their illustrative status wherever they appear. Live request telemetry must reflect the completed request rather than the initially selected route when failover occurs.
+The landing feature stack states product capabilities without sample metrics or a request trace. The public playground uses request traces and saved scenarios. Live request telemetry must reflect the completed request rather than the initially selected route when failover occurs.
 
 Model routing labels use human-readable names alongside the exact model ID. The overview states the configured simple, code, and complex routes; request rows and traces show the model that actually answered, including fallback.
 
