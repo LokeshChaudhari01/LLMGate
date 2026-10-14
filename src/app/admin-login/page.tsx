@@ -6,6 +6,7 @@ import Link from "next/link";
 
 export default function AdminLogin() {
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -45,16 +46,33 @@ export default function AdminLogin() {
         <form onSubmit={handleLogin} noValidate className="space-y-4">
           <div>
             <label htmlFor="admin-password" className="block text-sm text-zinc-400 mb-1">Password</label>
-            <input
-              id="admin-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-zinc-100"
-              placeholder="Enter admin password"
-              autoFocus
-            />
+            <div className="relative">
+              <input
+                id="admin-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 pr-12 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter admin password"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-controls="admin-password"
+                aria-pressed={showPassword}
+                title={showPassword ? "Hide password" : "Show password"}
+                className="absolute inset-y-0 right-1 flex w-10 items-center justify-center rounded-md text-zinc-400 transition-colors hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                  <circle cx="12" cy="12" r="3" />
+                  {showPassword && <path d="m4 4 16 16" />}
+                </svg>
+              </button>
+            </div>
           </div>
 
           {error && <div role="alert" className="text-red-400 text-sm font-medium">{error}</div>}

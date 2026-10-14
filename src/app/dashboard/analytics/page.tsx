@@ -9,7 +9,7 @@ export default function AnalyticsPage() {
     <>
       <div className="mb-8">
         <h2 className="text-2xl font-semibold text-zinc-100">Routing Intelligence</h2>
-        <p className="text-zinc-400 mt-1">Multi-model routing distribution and complexity analysis</p>
+        <p className="text-zinc-400 mt-1">Routing distribution and complexity across all recorded requests</p>
       </div>
       <AnalyticsDashboard />
     </>

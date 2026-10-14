@@ -17,8 +17,7 @@ export async function GET(request: NextRequest) {
         cacheHits: sql<number>`sum(case when ${usageLogs.cacheHit} then 1 else 0 end)`.mapWith(Number),
         failovers: sql<number>`sum(case when ${usageLogs.failoverUsed} then 1 else 0 end)`.mapWith(Number),
       })
-      .from(usageLogs)
-      .where(sql`${usageLogs.createdAt} > NOW() - INTERVAL '24 hours'`);
+      .from(usageLogs);
 
     const stats = res[0];
     const cacheHitRate = stats.totalRequests > 0 ? (stats.cacheHits / stats.totalRequests) * 100 : 0;

@@ -21,6 +21,7 @@ Visual intent and tokens live in [DESIGN.md](DESIGN.md). This file records the o
 - Every sample metric and request row is illustrative. The page never calls private admin APIs or mixes sample and live records.
 - The real dashboard remains authenticated. The private playground's requests flow through the same gateway and appear in real analytics after telemetry settles.
 - The overview shows the target simple → Gemini Flash, code → Groq, and complex → OpenRouter routes. Recent requests and live traces show the actual model ID and its readable name, even after fallback.
+- Private overview totals and routing analytics cover all recorded requests. The overview charts group those requests by UTC day; the recent-requests table shows the latest 20 records.
 
 ## Interaction
 

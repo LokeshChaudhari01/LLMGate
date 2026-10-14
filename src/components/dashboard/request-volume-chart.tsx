@@ -11,14 +11,14 @@ import {
 } from "recharts";
 import type { ChartPoint } from "@/lib/dashboard/types";
 
-export function RequestVolumeChart({ data }: { data: Pick<ChartPoint, "hour" | "count">[] }) {
+export function RequestVolumeChart({ data }: { data: Pick<ChartPoint, "day" | "count">[] }) {
   if (!data || data.length === 0) {
     return <div className="h-64 flex items-center justify-center text-zinc-500">No data available</div>;
   }
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-      <h3 className="text-lg font-medium text-zinc-100 mb-4">Request Volume (24h)</h3>
+      <h3 className="text-lg font-medium text-zinc-100 mb-4">Daily Request Volume</h3>
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -29,7 +29,7 @@ export function RequestVolumeChart({ data }: { data: Pick<ChartPoint, "hour" | "
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-            <XAxis dataKey="hour" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
+            <XAxis dataKey="day" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} minTickGap={24} />
             <YAxis stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
             <Tooltip
               contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", borderRadius: "8px" }}

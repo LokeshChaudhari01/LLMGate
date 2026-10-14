@@ -25,14 +25,14 @@ export interface StatsResponse {
 }
 
 export interface ChartPoint {
-  hour: string;
+  day: string;
   count: number;
   avgMs: number;
 }
 
 export interface ChartsResponse {
-  requestVolume: Pick<ChartPoint, "hour" | "count">[];
-  latency: Pick<ChartPoint, "hour" | "avgMs">[];
+  requestVolume: Pick<ChartPoint, "day" | "count">[];
+  latency: Pick<ChartPoint, "day" | "avgMs">[];
 }
 
 export interface RequestSummary {

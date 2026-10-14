@@ -10,19 +10,19 @@ export async function GET(request: NextRequest) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
   try {
+    const day = sql<string>`to_char(${usageLogs.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`;
     const res = await db
       .select({
-        hour: sql<string>`date_trunc('hour', ${usageLogs.createdAt})`,
+        day,
         count: sql<number>`count(*)`.mapWith(Number),
         avgLatency: sql<number>`avg(${usageLogs.latencyMs})`.mapWith(Number),
       })
       .from(usageLogs)
-      .where(sql`${usageLogs.createdAt} > NOW() - INTERVAL '24 hours'`)
-      .groupBy(sql`date_trunc('hour', ${usageLogs.createdAt})`)
-      .orderBy(sql`date_trunc('hour', ${usageLogs.createdAt}) ASC`);
+      .groupBy(day)
+      .orderBy(day);
 
-    const requestVolume = res.map((r) => ({ hour: new Date(r.hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), count: r.count }));
-    const latency = res.map((r) => ({ hour: new Date(r.hour).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), avgMs: Math.round(r.avgLatency) }));
+    const requestVolume = res.map((r) => ({ day: r.day, count: r.count }));
+    const latency = res.map((r) => ({ day: r.day, avgMs: Math.round(r.avgLatency) }));
 
     return NextResponse.json({ requestVolume, latency });
   } catch (error) {

@@ -10,8 +10,6 @@ export async function GET(request: NextRequest) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
   try {
-    const timeFilter = sql`${usageLogs.createdAt} > NOW() - INTERVAL '24 hours'`;
-
     const byProviderRes = await db
       .select({
         provider: usageLogs.provider,
@@ -21,7 +19,6 @@ export async function GET(request: NextRequest) {
         successRate: sql<number>`sum(case when ${usageLogs.status} IN ('SUCCESS', 'CACHED') then 1 else 0 end)::float / count(*) * 100`.mapWith(Number),
       })
       .from(usageLogs)
-      .where(timeFilter)
       .groupBy(usageLogs.provider);
 
     const byModelRes = await db
@@ -33,7 +30,6 @@ export async function GET(request: NextRequest) {
         successRate: sql<number>`sum(case when ${usageLogs.status} IN ('SUCCESS', 'CACHED') then 1 else 0 end)::float / count(*) * 100`.mapWith(Number),
       })
       .from(usageLogs)
-      .where(timeFilter)
       .groupBy(usageLogs.model);
 
     const byQueryTypeRes = await db
@@ -44,7 +40,6 @@ export async function GET(request: NextRequest) {
         successRate: sql<number>`sum(case when ${usageLogs.status} IN ('SUCCESS', 'CACHED') then 1 else 0 end)::float / count(*) * 100`.mapWith(Number),
       })
       .from(usageLogs)
-      .where(timeFilter)
       .groupBy(sql`COALESCE(${usageLogs.queryType}, 'unknown')`);
 
     const complexityBucketsRes = await db
@@ -53,7 +48,6 @@ export async function GET(request: NextRequest) {
         count: sql<number>`count(*)`.mapWith(Number),
       })
       .from(usageLogs)
-      .where(timeFilter)
       .groupBy(sql`width_bucket(COALESCE(${usageLogs.complexityScore}, 0), 0, 100, 10)`)
       .orderBy(sql`width_bucket(COALESCE(${usageLogs.complexityScore}, 0), 0, 100, 10) ASC`);
 
@@ -71,7 +65,6 @@ export async function GET(request: NextRequest) {
         count: sql<number>`count(*)`.mapWith(Number),
       })
       .from(usageLogs)
-      .where(timeFilter)
       .groupBy(sql`COALESCE(${usageLogs.routingReason}, 'unknown')`);
 
     return NextResponse.json({

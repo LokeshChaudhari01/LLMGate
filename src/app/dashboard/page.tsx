@@ -9,7 +9,7 @@ export default function DashboardPage() {
     <>
       <div className="mb-8">
         <h2 className="text-2xl font-semibold text-zinc-100">Overview</h2>
-        <p className="text-zinc-400 mt-1">Real-time system telemetry and performance</p>
+        <p className="text-zinc-400 mt-1">Gateway activity across all recorded requests</p>
       </div>
       <OverviewDashboard />
     </>
