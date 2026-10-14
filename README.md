@@ -12,7 +12,7 @@ LLMGate is a deployed, multi-tenant AI gateway that routes chat requests across 
 - **Rate limit and cache:** Redis runs a per-key sliding window limit and a tenant-scoped exact-prompt cache. Cache hits return the same SSE format and cost no provider tokens.
 - **Privacy:** emails, phone numbers, payment-card-like strings, US SSNs, and common secret assignments are redacted from all message roles before the provider call. This is regex redaction, not a guarantee that all sensitive content is detected.
 - **Admin:** password-protected dashboard for tenant budgets, API keys, request history, routing, latency, provider mix, and cost. Keys are stored as hashes and the raw key is shown only when created.
-- **Public demo:** visitors can inspect saved routing examples and a clearly labelled sample dashboard without an account. A separate public tenant allows one short live question per browser daily, with a PostgreSQL-enforced site-wide cap of 20 and a per-IP backstop of three. The public API key stays on the server.
+- **Public demo:** visitors can inspect saved routing examples and a clearly labelled sample dashboard without an account. A separate public tenant allows one short live question per browser daily, with a PostgreSQL-enforced site-wide cap of 20 and a per-IP backstop of three. Live answers request up to 512 output tokens; if a provider stops at that limit, the page marks the answer as potentially incomplete. The public API key stays on the server.
 - **Observability:** each request has an ID. A worker writes usage to a partitioned PostgreSQL table. `GET /api/health` checks PostgreSQL, Redis, and the worker heartbeat.
 
 ## Architecture

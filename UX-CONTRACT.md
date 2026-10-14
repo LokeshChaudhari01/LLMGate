@@ -14,7 +14,7 @@ Visual intent and tokens live in [DESIGN.md](DESIGN.md). This file records the o
 - A visitor may send one short live question per day. The server also enforces a site-wide daily cap and a small per-IP cap using durable PostgreSQL counters. If quota storage fails, live requests are unavailable.
 - A rejected request before a provider call refunds its quota reservation. A stopped or interrupted stream may still count because a provider might have processed it.
 - Live responses stream text and conclude with request-specific, safe gateway metadata. Show actual provider/model after failover, cache status, latency, tokens, and estimated cost. Do not display other visitors' requests or private tenant data.
-- In loading, quota-exhausted, service-unavailable, error, and stopped states, show an inline explanation and keep saved examples available. Preserve a visitor's prompt on request failure.
+- In loading, quota-exhausted, service-unavailable, error, stopped, and output-limited states, show an inline explanation and keep saved examples available. Preserve a visitor's prompt on request failure. An output-limited answer must not be labelled complete.
 
 ## Sample dashboard
 

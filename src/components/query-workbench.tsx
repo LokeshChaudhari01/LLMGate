@@ -21,6 +21,7 @@ export function QueryWorkbench({ mode }: { mode: Mode }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [stopped, setStopped] = useState(false);
+  const [outputLimited, setOutputLimited] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const runningRef = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -57,6 +58,7 @@ export function QueryWorkbench({ mode }: { mode: Mode }) {
     setCache(item.trace.cacheHit ? "HIT" : "MISS");
     setError("");
     setStopped(false);
+    setOutputLimited(false);
   }
 
   function writeQuestion() {
@@ -66,6 +68,7 @@ export function QueryWorkbench({ mode }: { mode: Mode }) {
     setRequestId("");
     setCache("");
     setError("");
+    setOutputLimited(false);
     setPrompt("");
     inputRef.current?.focus();
   }
@@ -89,6 +92,7 @@ export function QueryWorkbench({ mode }: { mode: Mode }) {
     setCache("");
     setError("");
     setStopped(false);
+    setOutputLimited(false);
     const controller = new AbortController();
     controllerRef.current = controller;
     let completed = false;
@@ -111,7 +115,10 @@ export function QueryWorkbench({ mode }: { mode: Mode }) {
       if (!response.body) throw new Error("The response stream was empty. Please retry.");
       await readGatewayStream(response.body, (event) => {
         if (event.type === "text") setAnswer((current) => current + event.content);
-        if (event.type === "meta") setTrace(event.trace);
+        if (event.type === "meta") {
+          setTrace(event.trace);
+          setOutputLimited(Boolean(event.trace.outputLimited));
+        }
         if (event.type === "error") streamError = event.message;
         if (event.type === "done") completed = true;
       });
@@ -151,7 +158,7 @@ export function QueryWorkbench({ mode }: { mode: Mode }) {
       <div className="space-y-6">
         <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 sm:p-6" aria-labelledby="question-heading">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><h2 id="question-heading" className="text-lg font-semibold text-white">Ask a question</h2><p className="mt-1 text-sm text-zinc-400">{isPublic ? "One short question, answered through the live gateway." : "Send a question through the same gateway as an application client."}</p></div>
+            <div><h2 id="question-heading" className="text-lg font-semibold text-white">Ask a question</h2><p className="mt-1 text-sm text-zinc-400">{isPublic ? "One short question, answered through the live gateway. Live answers have a length limit." : "Send a question through the same gateway as an application client."}</p></div>
             {sample && <span className="rounded-full border border-blue-800 bg-blue-950 px-3 py-1 text-xs text-blue-300">Saved example</span>}
           </div>
           <form onSubmit={(event) => { event.preventDefault(); void submit(); }} noValidate className="mt-5">
@@ -160,7 +167,7 @@ export function QueryWorkbench({ mode }: { mode: Mode }) {
               ref={inputRef}
               id="gateway-question"
               value={prompt}
-              onChange={(event) => { setPrompt(event.target.value); if (sample) { setSample(null); setAnswer(""); setTrace(null); setRequestId(""); setCache(""); } setError(""); }}
+              onChange={(event) => { setPrompt(event.target.value); if (sample) { setSample(null); setAnswer(""); setTrace(null); setRequestId(""); setCache(""); setOutputLimited(false); } setError(""); }}
               onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void submit(); } }}
               maxLength={maxLength}
               rows={4}
@@ -184,10 +191,11 @@ export function QueryWorkbench({ mode }: { mode: Mode }) {
         </section>
 
         <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 sm:p-6" aria-labelledby="answer-heading">
-          <div className="flex items-center justify-between gap-3"><h2 id="answer-heading" className="text-lg font-semibold text-white">Answer</h2><span className="text-xs text-zinc-500">{sample ? "Saved example · No API call" : busy ? "Streaming" : answer ? "Complete" : "Ready"}</span></div>
+          <div className="flex items-center justify-between gap-3"><h2 id="answer-heading" className="text-lg font-semibold text-white">Answer</h2><span className="text-xs text-zinc-500">{sample ? "Saved example · No API call" : busy ? "Streaming" : outputLimited ? "Length limit reached" : stopped ? "Stopped" : error ? "Error" : answer ? "Complete" : "Ready"}</span></div>
           <div className="mt-5 min-h-40 whitespace-pre-wrap rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-4 text-sm leading-7 text-zinc-200" aria-live="polite" aria-atomic="false">
             {answer || (busy ? "Waiting for the model to respond…" : "Choose a saved example or send your own question to see the response here.")}
           </div>
+          {outputLimited && <p className="mt-3 text-sm text-amber-300" role="status">The model reached the live demo&apos;s output limit. This answer may be incomplete.</p>}
           {stopped && <p className="mt-3 text-sm text-amber-300" role="status">Response stopped. A live question may still count toward today&apos;s allowance.</p>}
         </section>
 

@@ -6,7 +6,7 @@ test("public playground reads fragmented text, metadata, and completion events",
   const payload = [
     'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
     'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
-    'event: gateway-meta\ndata: {"requestId":"abc","model":"gemini-2.5-flash"}\n\n',
+    'event: gateway-meta\ndata: {"requestId":"abc","model":"gemini-2.5-flash","outputLimited":true}\n\n',
     'data: [DONE]\n\n',
   ].join("");
   const bytes = new TextEncoder().encode(payload);
@@ -26,4 +26,5 @@ test("public playground reads fragmented text, metadata, and completion events",
   assert.deepEqual(events.map((event) => event.type), ["text", "text", "meta", "done"]);
   assert.equal(events.filter((event) => event.type === "text").map((event) => event.content).join(""), "Hello world");
   assert.equal(events[2].type === "meta" && events[2].trace.model, "gemini-2.5-flash");
+  assert.equal(events[2].type === "meta" && events[2].trace.outputLimited, true);
 });

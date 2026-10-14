@@ -176,6 +176,8 @@ export interface StreamResult {
   completionTokens: number;
   /** Whether the stream completed fully without error or disconnect. */
   isComplete: boolean;
+  /** Provider stopped because the requested output length was reached. */
+  outputLimited?: boolean;
 }
 
 // ---------------------------------------------------------------------------

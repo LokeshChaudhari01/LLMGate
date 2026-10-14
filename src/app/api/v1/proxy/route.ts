@@ -364,7 +364,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       // runtime may stop pending work as soon as the response finishes.
 
       // Cache the response with provider/model metadata (AD-7)
-      if (result.completion && result.isComplete === true) {
+      if (result.completion && result.isComplete === true && !result.outputLimited) {
         await setCachedResponse(cacheKey, {
           completion: result.completion,
           model: result.model,

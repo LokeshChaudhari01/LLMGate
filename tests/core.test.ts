@@ -84,6 +84,37 @@ test("OpenRouter telemetry records the free model that actually streamed", async
   assert.match(output, /data: \[DONE\]/);
 });
 
+test("gateway reports output-length stops without treating the provider stream as an error", async () => {
+  process.env.DATABASE_URL ||= "postgresql://localhost/test";
+  const { createProxyStream } = await import("../src/lib/proxy/stream-handler");
+  const cases = [
+    { name: "groq", model: "openai/gpt-oss-120b", chunk: { choices: [{ delta: { content: "Partial answer" }, finish_reason: "length" }] } },
+    { name: "gemini", model: "gemini-2.5-flash", chunk: { candidates: [{ content: { parts: [{ text: "Partial answer" }] }, finishReason: "MAX_TOKENS" }] } },
+  ];
+  for (const item of cases) {
+    const provider: LLMProvider = {
+      name: item.name,
+      async stream() { return new Response(`data: ${JSON.stringify(item.chunk)}\n\n`, { status: 200 }); },
+    };
+    let completed: StreamResult | undefined;
+    const stream = createProxyStream(
+      `test-${item.name}-limit`,
+      [{ role: "user", content: "Explain this" }],
+      { provider, model: item.model, apiKey: "test", timeoutMs: 1000 },
+      { provider, model: item.model, apiKey: "test", timeoutMs: 1000 },
+      "default_simple",
+      async (result) => { completed = result; },
+      undefined,
+      { emitMetadata: true }
+    );
+    const output = await new Response(stream).text();
+    assert.equal(completed?.isComplete, true);
+    assert.equal(completed?.outputLimited, true);
+    assert.match(output, /"outputLimited":true/);
+    assert.match(output, /data: \[DONE\]/);
+  }
+});
+
 test("OpenRouter sends only free models and streams usage", async () => {
   const originalFetch = globalThis.fetch;
   let requestedUrl = "";

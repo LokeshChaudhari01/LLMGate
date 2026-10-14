@@ -10,6 +10,7 @@ export type DemoTrace = {
   estimatedCostUsd: string;
   cacheHit: boolean;
   piiRedacted: boolean;
+  outputLimited?: boolean;
 };
 
 export type SampleScenario = {

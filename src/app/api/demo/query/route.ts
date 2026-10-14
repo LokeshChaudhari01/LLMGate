@@ -110,7 +110,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       body: JSON.stringify({
         model: "auto",
         messages: [{ role: "user", content: prompt }],
-        max_output_tokens: 256,
+        max_output_tokens: 512,
         include_gateway_meta: true,
       }),
       signal: request.signal,

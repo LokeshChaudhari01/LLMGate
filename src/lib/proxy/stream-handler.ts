@@ -138,6 +138,18 @@ function extractUsageMetadata(dataLine: string): {
   return extractGeminiTokens(dataLine) ?? extractOpenAITokens(dataLine);
 }
 
+/** Gemini and OpenAI-compatible providers use different length-limit reasons. */
+function reachedOutputLimit(dataLine: string): boolean {
+  try {
+    const chunk = JSON.parse(dataLine);
+    return chunk?.candidates?.some((candidate: { finishReason?: string }) => candidate.finishReason === "MAX_TOKENS") ||
+      chunk?.choices?.some((choice: { finish_reason?: string }) =>
+        choice.finish_reason === "length" || choice.finish_reason === "max_tokens") || false;
+  } catch {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Stream Attempt (single provider)
 // ---------------------------------------------------------------------------
@@ -248,6 +260,7 @@ export function createProxyStream(
       let completionText = "";
       let promptTokens = 0;
       let completionTokens = 0;
+      let outputLimited = false;
       let actualRoutingReason = routingReason;
 
       // ----- Phase 1: Connect (with failover) -----
@@ -369,6 +382,7 @@ export function createProxyStream(
               }
 
               // Extract text content — handles both Gemini and OpenAI (Groq) formats
+              if (reachedOutputLimit(dataContent)) outputLimited = true;
               const text = extractText(dataContent);
               if (text) {
                 completionText += text;
@@ -414,6 +428,7 @@ export function createProxyStream(
           promptTokens,
           completionTokens,
           isComplete: true,
+          outputLimited,
         };
         await onComplete(finalResult);
         if (options.emitMetadata) {
@@ -429,6 +444,7 @@ export function createProxyStream(
             estimatedCostUsd: calculateCost(usedModel, promptTokens, completionTokens),
             cacheHit: false,
             piiRedacted: Boolean(options.piiRedacted),
+            outputLimited,
           };
           controller.enqueue(encoder.encode(`event: gateway-meta\ndata: ${JSON.stringify(metadata)}\n\n`));
         }
