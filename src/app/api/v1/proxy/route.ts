@@ -185,6 +185,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const maxOutputTokens = body.max_output_tokens ?? MAX_OUTPUT_TOKENS;
+  // The server-held public demo key selects a lean Gemini response. Other API
+  // clients retain the provider's default thinking behavior.
+  const geminiThinkingBudget = process.env.SITE_DEMO_API_KEY && token === process.env.SITE_DEMO_API_KEY ? 0 : undefined;
 
   // The free Render worker can be asleep. Start waking it while the provider
   // request runs so queued usage can be processed after the cold start.
@@ -215,7 +218,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     routeDecision.model,
     sanitizedMessages,
     body.temperature,
-    maxOutputTokens
+    maxOutputTokens,
+    geminiThinkingBudget
   );
 
   const cached = await getCachedResponse(cacheKey);
@@ -391,6 +395,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       maxOutputTokens,
       emitMetadata: body.include_gateway_meta,
       piiRedacted: piiDetected,
+      geminiThinkingBudget,
     }
   );
 

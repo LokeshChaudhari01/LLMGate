@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { POST as proxyRequest } from "@/app/api/v1/proxy/route";
 import { validateApiKey } from "@/lib/proxy/auth";
+import { MAX_OUTPUT_TOKENS } from "@/lib/proxy/budget";
 import { getDemoQuotaStatus, releaseDemoQuota, reserveDemoQuota } from "@/lib/demo/quota";
 
 export const runtime = "nodejs";
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       body: JSON.stringify({
         model: "auto",
         messages: [{ role: "user", content: prompt }],
-        max_output_tokens: 512,
+        max_output_tokens: MAX_OUTPUT_TOKENS,
         include_gateway_meta: true,
       }),
       signal: request.signal,

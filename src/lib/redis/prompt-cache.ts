@@ -75,7 +75,8 @@ export function generateCacheKey(
   model: string,
   messages: unknown[],
   temperature: number = 1.0,
-  maxOutputTokens = 1024
+  maxOutputTokens = 1024,
+  geminiThinkingBudget?: number
 ): string {
   const config = getConfig();
 
@@ -86,6 +87,7 @@ export function generateCacheKey(
     msg: messages,
     t: temperature,
     maxOutputTokens,
+    geminiThinkingBudget,
   });
 
   const hash = createHash("sha256").update(canonical).digest("hex");

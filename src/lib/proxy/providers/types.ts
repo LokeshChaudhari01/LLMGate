@@ -56,6 +56,8 @@ export interface StreamRequest {
   apiKey: string;
   temperature?: number;
   maxOutputTokens: number;
+  /** Optional Gemini 2.5 Flash thinking budget for this request. */
+  geminiThinkingBudget?: number;
 }
 
 /**

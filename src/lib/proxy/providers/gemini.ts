@@ -105,6 +105,9 @@ export const geminiProvider: LLMProvider = {
 
     body.generationConfig = { maxOutputTokens: request.maxOutputTokens };
     if (request.temperature !== undefined) body.generationConfig.temperature = request.temperature;
+    if (request.model === "gemini-2.5-flash" && request.geminiThinkingBudget !== undefined) {
+      body.generationConfig.thinkingConfig = { thinkingBudget: request.geminiThinkingBudget };
+    }
 
     const endpoint = buildEndpoint(request.model, request.apiKey);
 

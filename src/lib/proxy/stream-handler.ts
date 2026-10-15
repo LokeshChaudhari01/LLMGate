@@ -35,6 +35,7 @@ export interface GatewayStreamOptions {
   maxOutputTokens?: number;
   emitMetadata?: boolean;
   piiRedacted?: boolean;
+  geminiThinkingBudget?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,7 +172,8 @@ async function attemptStream(
   config: ProviderConfig,
   messages: Message[],
   temperature?: number,
-  maxOutputTokens = MAX_OUTPUT_TOKENS
+  maxOutputTokens = MAX_OUTPUT_TOKENS,
+  geminiThinkingBudget?: number
 ): Promise<StreamAttemptResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs);
@@ -184,6 +186,7 @@ async function attemptStream(
         apiKey: config.apiKey,
         temperature,
         maxOutputTokens,
+        geminiThinkingBudget: config.provider.name === "gemini" ? geminiThinkingBudget : undefined,
       },
       controller.signal
     );
@@ -264,7 +267,7 @@ export function createProxyStream(
       let actualRoutingReason = routingReason;
 
       // ----- Phase 1: Connect (with failover) -----
-      let attempt = await attemptStream(primaryConfig, messages, temperature, options.maxOutputTokens);
+      let attempt = await attemptStream(primaryConfig, messages, temperature, options.maxOutputTokens, options.geminiThinkingBudget);
 
       if (!attempt.success) {
         console.warn(
@@ -272,7 +275,7 @@ export function createProxyStream(
         );
 
         // Try fallback
-        attempt = await attemptStream(fallbackConfig, messages, temperature, options.maxOutputTokens);
+        attempt = await attemptStream(fallbackConfig, messages, temperature, options.maxOutputTokens, options.geminiThinkingBudget);
         if (!attempt.success) {
           // Both failed — emit error and close
           console.error(
